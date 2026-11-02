@@ -5,6 +5,22 @@ export interface ParseProgress {
 
 const MAX_FILE_BYTES = 40 * 1024 * 1024;
 
+function cleanMarkdown(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/(\*\*|__)(.*?)\1/g, '$2')
+    .replace(/(\*|_)(.*?)\1/g, '$2')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*>\s?/gm, '')
+    .replace(/^\s*([-*_]\s*){3,}$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function getFileKind(file: File): 'pdf' | 'docx' | 'text' | 'unknown' {
   const name = file.name.toLowerCase();
   if (name.endsWith('.pdf') || file.type === 'application/pdf') return 'pdf';
@@ -37,7 +53,8 @@ export async function parseFile(
   onProgress?.({ label: 'Reading file', progress: 0.1 });
 
   if (kind === 'text') {
-    const text = await file.text();
+    const raw = await file.text();
+    const text = file.name.toLowerCase().endsWith('.md') ? cleanMarkdown(raw) : raw;
     onProgress?.({ label: 'Done', progress: 1 });
     return text;
   }
@@ -81,7 +98,11 @@ export async function parseFile(
       page.cleanup();
     }
 
-    await (document as unknown as { destroy: () => Promise<void> }).destroy();
+    try {
+      await (document as unknown as { destroy: () => Promise<void> }).destroy();
+    } catch {
+      // Some PDF worker versions fail to tear down cleanly; text is already extracted.
+    }
     onProgress?.({ label: 'Done', progress: 1 });
     return pages.join('\n\n');
   }

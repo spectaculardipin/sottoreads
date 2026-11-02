@@ -9,7 +9,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { AppSettings } from '../lib/storage';
-import type { VoiceOption } from '../lib/types';
+import type { BatchMode, VoiceOption } from '../lib/types';
+import { makeBatches } from '../lib/text';
 import { FileDrop } from './FileDrop';
 
 interface SetupPanelProps {
@@ -52,7 +53,7 @@ export function SetupPanel({
   onClear,
 }: SetupPanelProps) {
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-  const batches = words > 0 ? Math.ceil(words / settings.batchSize) : 0;
+  const batches = text.trim() ? makeBatches(text, settings.batchSize, settings.batchMode).length : 0;
   const canStart = words > 0 && !isParsing;
   const minSamples = settings.training.minSamples;
 
@@ -117,46 +118,66 @@ export function SetupPanel({
         <aside className="panel panel-pad">
           <div className="settings">
             <div className="field">
-              <label className="field-label" htmlFor="batch-size">
-                Words per batch
+              <label className="field-label" htmlFor="batch-mode">
+                Batch by
               </label>
-              <div className="stepper">
-                <button
-                  type="button"
-                  aria-label="Decrease words per batch"
-                  onClick={() =>
-                    onSettingsChange({ batchSize: Math.max(1, settings.batchSize - 1) })
-                  }
-                >
-                  −
-                </button>
-                <input
-                  id="batch-size"
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={settings.batchSize}
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    if (Number.isFinite(next)) {
-                      onSettingsChange({ batchSize: Math.max(1, Math.min(20, next)) });
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  aria-label="Increase words per batch"
-                  onClick={() =>
-                    onSettingsChange({ batchSize: Math.min(20, settings.batchSize + 1) })
-                  }
-                >
-                  +
-                </button>
-              </div>
-              <span className="field-note">
-                A short phrase is easier to hold in mind while writing.
-              </span>
+              <select
+                id="batch-mode"
+                className="select"
+                value={settings.batchMode}
+                onChange={(event) =>
+                  onSettingsChange({ batchMode: event.target.value as BatchMode })
+                }
+              >
+                <option value="words">Words</option>
+                <option value="sentence">Sentence</option>
+                <option value="phrase">Phrase</option>
+              </select>
             </div>
+
+            {settings.batchMode === 'words' && (
+              <div className="field">
+                <label className="field-label" htmlFor="batch-size">
+                  Words per batch
+                </label>
+                <div className="stepper">
+                  <button
+                    type="button"
+                    aria-label="Decrease words per batch"
+                    onClick={() =>
+                      onSettingsChange({ batchSize: Math.max(1, settings.batchSize - 1) })
+                    }
+                  >
+                    −
+                  </button>
+                  <input
+                    id="batch-size"
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={settings.batchSize}
+                    onChange={(event) => {
+                      const next = Number(event.target.value);
+                      if (Number.isFinite(next)) {
+                        onSettingsChange({ batchSize: Math.max(1, Math.min(20, next)) });
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Increase words per batch"
+                    onClick={() =>
+                      onSettingsChange({ batchSize: Math.min(20, settings.batchSize + 1) })
+                    }
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="field-note">
+                  A short phrase is easier to hold in mind while writing.
+                </span>
+              </div>
+            )}
 
             <div className="field">
               <span className="field-label">Voice engine</span>

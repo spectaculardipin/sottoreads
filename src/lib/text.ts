@@ -1,4 +1,4 @@
-import type { Batch, TextStats } from './types';
+import type { Batch, BatchMode, TextStats } from './types';
 
 const WORD_SPLIT = /\s+/;
 
@@ -54,9 +54,33 @@ export function getTextStats(words: string[]): TextStats {
   };
 }
 
-export function makeBatches(text: string, wordsPerBatch: number): Batch[] {
+export function makeBatches(
+  text: string,
+  wordsPerBatch: number,
+  batchMode: BatchMode = 'words',
+): Batch[] {
   const words = splitWords(text);
   if (words.length === 0) return [];
+
+  if (batchMode === 'sentence' || batchMode === 'phrase') {
+    const separator = batchMode === 'sentence' ? /(?<=[.!?])\s+/ : /(?<=[;:,])\s+/;
+    const segments = normalizeText(text)
+      .split(separator)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+
+    if (segments.length > 1) {
+      return segments.map((segment, index) => {
+        const segmentWords = splitWords(segment);
+        return {
+          index,
+          text: segment,
+          words: segmentWords,
+          stats: getTextStats(segmentWords),
+        };
+      });
+    }
+  }
 
   const size = Math.max(1, Math.min(50, Math.round(wordsPerBatch)));
   const batches: Batch[] = [];

@@ -337,7 +337,11 @@ export default function App() {
       return;
     }
 
-    const nextBatches = makeBatches(textRef.current, settingsRef.current.batchSize);
+    const nextBatches = makeBatches(
+      textRef.current,
+      settingsRef.current.batchSize,
+      settingsRef.current.batchMode,
+    );
     if (nextBatches.length === 0) {
       showToast('Could not split that text into batches.', 'error');
       return;
@@ -718,7 +722,7 @@ export default function App() {
       syllables: batch.stats.syllables,
       punctuation: batch.stats.punctuation,
       capitals: batch.stats.capitals,
-      batchSize: settingsNow.batchSize,
+      batchSize: batch.stats.wordCount,
       durationMs,
       gapBeforeMs,
       predictedMs: runtime.predictedMs ?? undefined,

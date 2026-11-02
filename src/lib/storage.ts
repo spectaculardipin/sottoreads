@@ -4,6 +4,7 @@ import {
 } from './model';
 import type {
   AdvanceMode,
+  BatchMode,
   EngineId,
   RegressionModel,
   TrainingBundle,
@@ -19,6 +20,7 @@ export interface AppSettings {
   voice: string;
   speed: number;
   batchSize: number;
+  batchMode: BatchMode;
   advanceMode: AdvanceMode;
   training: TrainingSettings;
 }
@@ -33,6 +35,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   voice: 'luna',
   speed: 0.9,
   batchSize: 3,
+  batchMode: 'words',
   advanceMode: 'manual',
   training: { ...DEFAULT_TRAINING_SETTINGS },
 };

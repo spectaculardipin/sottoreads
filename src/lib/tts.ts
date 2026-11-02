@@ -127,6 +127,8 @@ export class KittenEngine implements TtsEngine {
         speed: this.speed,
         player,
         analytics: false,
+        ortNumThreads: 1,
+        ortWasmPath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/',
       },
       (progress, info) => {
         const percent = Math.round(Math.max(0, Math.min(1, progress)) * 100);

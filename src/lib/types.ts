@@ -2,6 +2,8 @@ export type EngineId = 'kitten' | 'browser';
 
 export type AdvanceMode = 'manual' | 'mic' | 'predicted';
 
+export type BatchMode = 'words' | 'sentence' | 'phrase';
+
 export type SessionStatus =
   | 'idle'
   | 'preparing'

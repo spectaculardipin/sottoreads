@@ -14,6 +14,7 @@ export class MicMonitor {
   private source: MediaStreamAudioSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
   private buffer: Float32Array<ArrayBuffer> | null = null;
+  private frequencyBuffer: Float32Array<ArrayBuffer> | null = null;
   private timer: number | null = null;
   private active = false;
   private state: VadState = 'waiting';
@@ -79,6 +80,7 @@ export class MicMonitor {
     this.analyser.smoothingTimeConstant = 0.65;
     this.source.connect(this.analyser);
     this.buffer = new Float32Array(this.analyser.fftSize);
+    this.frequencyBuffer = new Float32Array(this.analyser.frequencyBinCount);
 
     this.active = true;
     this.reset();
@@ -111,6 +113,7 @@ export class MicMonitor {
     this.analyser = null;
     this.context = null;
     this.buffer = null;
+    this.frequencyBuffer = null;
   }
 
   get isActive(): boolean {
@@ -137,7 +140,8 @@ export class MicMonitor {
     }
 
     const threshold = Math.max(0.012, this.noiseFloor * 2.6);
-    const speaking = rms > threshold;
+    // Spectral gate: page flips and rumble have energy outside the voice band.
+    const speaking = rms > threshold && this.isVoiceBandDominant();
 
     if (speaking) {
       this.lastVoiceAt = now;
@@ -188,5 +192,27 @@ export class MicMonitor {
       ),
     });
     if (this.startedAt === 0) this.startedAt = performance.now();
+  }
+
+  /** True when most energy sits in the 300–3400 Hz human voice band. */
+  private isVoiceBandDominant(): boolean {
+    if (!this.analyser || !this.frequencyBuffer) return true;
+    this.analyser.getFloatFrequencyData(this.frequencyBuffer);
+    const sampleRate = this.context?.sampleRate ?? 44100;
+    const binHz = sampleRate / this.analyser.fftSize;
+    const start = Math.max(1, Math.floor(300 / binHz));
+    const end = Math.min(this.frequencyBuffer.length - 1, Math.ceil(3400 / binHz));
+
+    let band = 0;
+    let total = 0;
+    for (let i = 1; i < this.frequencyBuffer.length; i += 1) {
+      const power = 10 ** (this.frequencyBuffer[i] / 10);
+      total += power;
+      if (i >= start && i <= end) band += power;
+    }
+    if (total <= 0) return false;
+    // -60 dB is the analyser floor; ignore frames that are effectively silent.
+    if (total < 1e-6) return false;
+    return band / total >= 0.35;
   }
 }

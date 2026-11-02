@@ -7,9 +7,11 @@ import type {
 
 export const FEATURE_NAMES = [
   'words',
+  'characters',
   'syllables',
   'avg word length',
   'punctuation',
+  'capitals',
 ] as const;
 
 export const DEFAULT_TRAINING_SETTINGS: TrainingSettings = {
@@ -22,9 +24,11 @@ export const DEFAULT_TRAINING_SETTINGS: TrainingSettings = {
 export function statsToFeatures(stats: TextStats): number[] {
   return [
     stats.wordCount,
+    stats.charCount,
     stats.syllables,
     stats.avgWordLength,
     stats.punctuation,
+    stats.capitals,
   ];
 }
 
@@ -147,6 +151,7 @@ export function trainModel(
   const filtered = filterTrainingRecords(allRecords);
   if (filtered.length < settings.minSamples) return null;
 
+  // Train on the most recent window so the model adapts to the current pace.
   const records = filtered.slice(-settings.windowSize);
   const featureRows = records.map((record) =>
     statsToFeatures({
