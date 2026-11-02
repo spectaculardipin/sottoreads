@@ -1,34 +1,9 @@
-import {
-  DEFAULT_TRAINING_SETTINGS,
-  isRegressionModel,
-} from './model';
-import type {
-  AdvanceMode,
-  BatchMode,
-  EngineId,
-  RegressionModel,
-  TrainingBundle,
-  TrainingRecord,
-  TrainingSettings,
-} from './types';
+import type { AppSettings, TrainingStore } from './types';
 
-const SETTINGS_KEY = 'dictate.settings.v1';
-const TRAINING_KEY = 'dictate.training.v1';
+export type { AppSettings } from './types';
 
-export interface AppSettings {
-  engine: EngineId;
-  voice: string;
-  speed: number;
-  batchSize: number;
-  batchMode: BatchMode;
-  advanceMode: AdvanceMode;
-  training: TrainingSettings;
-}
-
-export interface TrainingStore {
-  records: TrainingRecord[];
-  model: RegressionModel | null;
-}
+const SETTINGS_KEY = 'dictate.settings.v2';
+const TRAINING_KEY = 'dictate.training.v2';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   engine: 'kitten',
@@ -37,7 +12,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   batchSize: 3,
   batchMode: 'words',
   advanceMode: 'manual',
-  training: { ...DEFAULT_TRAINING_SETTINGS },
+  trainingCompleted: false,
+  msPerChar: null,
 };
 
 function safeParse<T>(raw: string | null): T | null {
@@ -53,16 +29,11 @@ export function loadSettings(): AppSettings {
   const stored = safeParse<Partial<AppSettings>>(
     typeof localStorage === 'undefined' ? null : localStorage.getItem(SETTINGS_KEY),
   );
-  if (!stored) return { ...DEFAULT_SETTINGS, training: { ...DEFAULT_TRAINING_SETTINGS } };
-
-  return {
-    ...DEFAULT_SETTINGS,
-    ...stored,
-    training: {
-      ...DEFAULT_TRAINING_SETTINGS,
-      ...(stored.training ?? {}),
-    },
-  };
+  const merged: AppSettings = { ...DEFAULT_SETTINGS, ...(stored ?? {}) };
+  if (merged.advanceMode === 'smart' && (!merged.trainingCompleted || merged.msPerChar == null)) {
+    merged.advanceMode = 'manual';
+  }
+  return merged;
 }
 
 export function saveSettings(settings: AppSettings): void {
@@ -78,10 +49,9 @@ export function loadTraining(): TrainingStore {
     typeof localStorage === 'undefined' ? null : localStorage.getItem(TRAINING_KEY),
   );
   if (!stored) return { records: [], model: null };
-
   return {
     records: Array.isArray(stored.records) ? stored.records : [],
-    model: isRegressionModel(stored.model) ? stored.model : null,
+    model: stored.model && stored.model.version === 1 ? stored.model : null,
   };
 }
 
@@ -99,63 +69,6 @@ export function clearTraining(): void {
   } catch {
     // Ignore.
   }
-}
-
-export function exportTraining(
-  records: TrainingRecord[],
-  model: RegressionModel | null,
-  settings: TrainingSettings,
-): TrainingBundle {
-  return {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    records,
-    model,
-    settings,
-  };
-}
-
-export function validateBundle(value: unknown): TrainingBundle | null {
-  if (!value || typeof value !== 'object') return null;
-  const bundle = value as Partial<TrainingBundle>;
-
-  if (bundle.version !== 1) return null;
-  if (!Array.isArray(bundle.records)) return null;
-
-  const records = bundle.records.filter(isTrainingRecord);
-  if (records.length === 0) return null;
-
-  const settings: TrainingSettings = {
-    ...DEFAULT_TRAINING_SETTINGS,
-    ...(bundle.settings ?? {}),
-  };
-
-  return {
-    version: 1,
-    exportedAt: typeof bundle.exportedAt === 'string' ? bundle.exportedAt : new Date().toISOString(),
-    records,
-    model: isRegressionModel(bundle.model) ? bundle.model : null,
-    settings,
-  };
-}
-
-function isTrainingRecord(value: unknown): value is TrainingRecord {
-  if (!value || typeof value !== 'object') return false;
-  const record = value as Partial<TrainingRecord>;
-  return (
-    typeof record.durationMs === 'number' &&
-    record.durationMs > 0 &&
-    typeof record.wordCount === 'number' &&
-    record.wordCount > 0 &&
-    typeof record.charCount === 'number' &&
-    typeof record.avgWordLength === 'number' &&
-    typeof record.syllables === 'number' &&
-    typeof record.punctuation === 'number' &&
-    typeof record.capitals === 'number' &&
-    typeof record.batchSize === 'number' &&
-    typeof record.createdAt === 'string' &&
-    typeof record.id === 'string'
-  );
 }
 
 export function downloadJson(filename: string, data: unknown): void {

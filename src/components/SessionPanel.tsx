@@ -4,16 +4,13 @@ import {
   Clock,
   Hand,
   Loader2,
-  Mic,
-  Plus,
   RotateCcw,
   SkipBack,
   SkipForward,
-  Sparkles,
   Square,
   Volume2,
 } from 'lucide-react';
-import type { AdvanceMode, Batch, SessionStatus, VadUpdate } from '../lib/types';
+import type { AdvanceMode, Batch, SessionStatus } from '../lib/types';
 import { formatClock, formatMs } from '../lib/text';
 
 interface SessionPanelProps {
@@ -23,14 +20,9 @@ interface SessionPanelProps {
   batchCount: number;
   activeWord: number;
   advanceMode: AdvanceMode;
-  vadUpdate: VadUpdate | null;
-  countdown: number | null;
-  predictedTotal: number;
   predictedMs: number | null;
-  modelReady: boolean;
-  trainingEnabled: boolean;
-  recordsCount: number;
-  minSamples: number;
+  predictedTotal: number;
+  smartReady: boolean;
   engineProgress: number;
   engineStatus: string;
   errorMessage: string | null;
@@ -43,7 +35,6 @@ interface SessionPanelProps {
   onCancelStart: () => void;
   onRetry: () => void;
   onBack: () => void;
-  onOpenTraining: () => void;
 }
 
 export function SessionPanel({
@@ -53,14 +44,9 @@ export function SessionPanel({
   batchCount,
   activeWord,
   advanceMode,
-  vadUpdate,
-  countdown,
-  predictedTotal,
   predictedMs,
-  modelReady,
-  trainingEnabled,
-  recordsCount,
-  minSamples,
+  predictedTotal,
+  smartReady,
   engineProgress,
   engineStatus,
   errorMessage,
@@ -73,7 +59,6 @@ export function SessionPanel({
   onCancelStart,
   onRetry,
   onBack,
-  onOpenTraining,
 }: SessionPanelProps) {
   if (status === 'preparing') {
     return (
@@ -160,15 +145,13 @@ export function SessionPanel({
               <p style={{ color: 'var(--muted)', margin: '0 0 22px', fontSize: 13 }}>
                 Sit comfortably. The first batch will play when you begin.
               </p>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button type="button" className="btn btn-primary btn-lg" onClick={onBegin}>
-                  <Volume2 size={18} />
-                  Begin dictation
-                </button>
-                <button type="button" className="btn" onClick={onCancelStart}>
-                  Cancel
-                </button>
-              </div>
+              <button type="button" className="btn btn-primary btn-lg" onClick={onBegin}>
+                <Volume2 size={18} />
+                Begin dictation
+              </button>
+              <button type="button" className="btn" onClick={onCancelStart}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -180,12 +163,10 @@ export function SessionPanel({
 
   const isPlaying = status === 'playing';
   const isYourTurn = status === 'your-turn';
-  const isListening = status === 'listening';
   const isPaused = status === 'paused';
-  const isPredicted = advanceMode === 'predicted';
-  const isMic = advanceMode === 'mic';
+  const isSmart = advanceMode === 'smart';
   const lastBatch = batchIndex >= batchCount - 1;
-  const countdownActive = countdown !== null && countdown > 0;
+  const countdownActive = predictedTotal !== null && predictedTotal > 0;
 
   return (
     <div className="session">
@@ -233,22 +214,16 @@ export function SessionPanel({
             <StatusText
               status={status}
               advanceMode={advanceMode}
-              vadUpdate={vadUpdate}
-              countdown={countdown}
-              expectedWords={batch.words.length}
+              predictedTotal={predictedTotal}
             />
           </div>
 
-          {isMic && (isListening || isPaused) && (
-            <MicMeter update={vadUpdate} />
-          )}
-
-          {isPredicted && (isYourTurn || isPaused) && (
+          {isSmart && (isYourTurn || isPaused) && predictedMs && (
             <PredictedTimer
-              countdown={countdown}
-              total={predictedTotal}
+              remaining={predictedTotal ?? 0}
+              total={predictedMs + 1200}
               predictedMs={predictedMs}
-              modelReady={modelReady}
+              smartReady={smartReady}
             />
           )}
         </div>
@@ -265,56 +240,28 @@ export function SessionPanel({
           <SkipBack size={16} />
           Previous
         </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={onReplay}
-          disabled={isPlaying}
-          aria-label="Replay this batch"
-        >
+        <button type="button" className="btn" onClick={onReplay} disabled={isPlaying} aria-label="Replay this batch">
           <RotateCcw size={16} />
           Replay
         </button>
-        {isPredicted && countdownActive && (
+        {isSmart && countdownActive && (
           <button type="button" className="btn" onClick={onMoreTime}>
-            <Plus size={16} />
             More time
           </button>
         )}
-        <button type="button" className="btn btn-primary" onClick={onNext}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={onNext}
+          disabled={status === 'batch-preparing'}
+        >
           <SkipForward size={16} />
           {lastBatch ? 'Finish' : 'Next'}
         </button>
       </div>
 
       <div className="session-foot">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span className={`pill${trainingEnabled && modelReady ? ' ok' : trainingEnabled ? ' warn' : ''}`}>
-            {trainingEnabled ? (
-              modelReady ? (
-                <>
-                  <Sparkles size={12} />
-                  <strong>Model ready</strong>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={12} />
-                  Training <strong>{recordsCount}/{minSamples}</strong>
-                </>
-              )
-            ) : (
-              <>
-                <Hand size={12} />
-                Training off
-              </>
-            )}
-          </span>
-          <button type="button" className="pill" onClick={onOpenTraining} style={{ borderStyle: 'dashed' }}>
-            <Clock size={12} />
-            {advanceMode === 'manual' ? 'Manual advance' : advanceMode === 'mic' ? 'Mic advance' : 'Predicted advance'}
-          </button>
-        </div>
-        <span>Microphone audio is analyzed in memory and never recorded.</span>
+        <span>{advanceMode === 'smart' ? 'Smart advance' : 'Manual advance'}</span>
       </div>
     </div>
   );
@@ -323,15 +270,11 @@ export function SessionPanel({
 function StatusText({
   status,
   advanceMode,
-  vadUpdate,
-  countdown,
-  expectedWords,
+  predictedTotal,
 }: {
   status: SessionStatus;
   advanceMode: AdvanceMode;
-  vadUpdate: VadUpdate | null;
-  countdown: number | null;
-  expectedWords: number;
+  predictedTotal: number | null;
 }) {
   if (status === 'batch-preparing') {
     return (
@@ -352,21 +295,13 @@ function StatusText({
   }
 
   if (status === 'your-turn') {
-    if (advanceMode === 'predicted' && countdown !== null && countdown > 0) {
+    if (advanceMode === 'smart' && predictedTotal !== null && predictedTotal > 0) {
       return (
         <>
           <Clock size={16} />
           <span>
-            Your turn — predicted next in <strong>{formatClock(countdown)}</strong>
+            Your turn — Smart advance in <strong>{formatClock(predictedTotal)}</strong>
           </span>
-        </>
-      );
-    }
-    if (advanceMode === 'mic') {
-      return (
-        <>
-          <Mic size={16} />
-          <span>Your turn — read aloud while you write.</span>
         </>
       );
     }
@@ -378,47 +313,11 @@ function StatusText({
     );
   }
 
-  if (status === 'listening') {
-    if (!vadUpdate) {
-      return (
-        <>
-          <Mic size={16} />
-          <span>Starting the microphone…</span>
-        </>
-      );
-    }
-    if (vadUpdate.state === 'speaking') {
-      return (
-        <>
-          <span className="status-dot ok" />
-          <span>
-            Hearing you — <strong>{Math.round(vadUpdate.estimatedWords)}</strong> of{' '}
-            {expectedWords} words.
-          </span>
-        </>
-      );
-    }
-    if (vadUpdate.state === 'paused') {
-      return (
-        <>
-          <span className="status-dot warn" />
-          <span>Pause detected — finishing up.</span>
-        </>
-      );
-    }
-    return (
-      <>
-        <Mic size={16} />
-        <span>Listening for your voice.</span>
-      </>
-    );
-  }
-
   if (status === 'paused') {
     return (
       <>
         <Check size={16} />
-        <span>Nice — moving to the next batch.</span>
+        <span>Moving to the next batch.</span>
       </>
     );
   }
@@ -426,47 +325,19 @@ function StatusText({
   return null;
 }
 
-function MicMeter({ update }: { update: VadUpdate | null }) {
-  const level = update?.level ?? 0;
-  const bars = 18;
-  return (
-    <div className="meter-wrap" aria-hidden="true">
-      <div className="meter">
-        {Array.from({ length: bars }, (_, index) => {
-          const wave = Math.abs(Math.sin((index + 1) * 0.85));
-          const height = 16 + level * 84 * (0.35 + 0.65 * wave);
-          return (
-            <span
-              key={index}
-              className={`meter-bar${level > 0.22 ? ' is-hot' : ''}`}
-              style={{ height: `${Math.max(12, Math.min(100, height))}%` }}
-            />
-          );
-        })}
-      </div>
-      <div className="meter-labels">
-        <span>Quiet</span>
-        <span>{update?.state === 'speaking' ? 'Hearing you' : 'Waiting'}</span>
-        <span>Speaking</span>
-      </div>
-    </div>
-  );
-}
-
 function PredictedTimer({
-  countdown,
+  remaining,
   total,
   predictedMs,
-  modelReady,
+  smartReady,
 }: {
-  countdown: number | null;
+  remaining: number;
   total: number;
-  predictedMs: number | null;
-  modelReady: boolean;
+  predictedMs: number;
+  smartReady: boolean;
 }) {
-  const remaining = countdown ?? 0;
   const progress =
-    countdown !== null && total > 0 ? Math.max(0, Math.min(1, 1 - remaining / total)) : 0;
+    remaining !== null && total > 0 ? Math.max(0, Math.min(1, 1 - remaining / total)) : 0;
   return (
     <div className="predicted-wrap">
       <div className="predicted-head">
@@ -482,13 +353,13 @@ function PredictedTimer({
               letterSpacing: '0.02em',
             }}
           >
-            Predicted
+            Smart
           </span>
-          {modelReady ? 'Your learned pace' : 'Default pace'} ·{' '}
-          {predictedMs ? formatMs(predictedMs) : '—'}
+          {smartReady ? 'Your learned pace' : 'Default pace'} ·{' '}
+          {formatMs(predictedMs)}
         </span>
         <span className="predicted-time">
-          {countdown !== null && countdown > 0 ? formatClock(countdown) : 'Take your time'}
+          {remaining > 0 ? formatClock(remaining) : 'Take your time'}
         </span>
       </div>
       <div className="predicted-track" aria-hidden="true">

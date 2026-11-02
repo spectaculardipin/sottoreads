@@ -1,8 +1,15 @@
 export type EngineId = 'kitten' | 'browser';
 
-export type AdvanceMode = 'manual' | 'mic' | 'predicted';
+export type AdvanceMode = 'manual' | 'smart';
 
 export type BatchMode = 'words' | 'sentence' | 'phrase';
+
+export type FeedbackRating =
+  | 'too-slow'
+  | 'a-little-slow'
+  | 'okay'
+  | 'a-little-fast'
+  | 'too-fast';
 
 export type SessionStatus =
   | 'idle'
@@ -11,8 +18,8 @@ export type SessionStatus =
   | 'ready'
   | 'playing'
   | 'your-turn'
-  | 'listening'
   | 'paused'
+  | 'training'
   | 'complete'
   | 'error';
 
@@ -68,69 +75,31 @@ export interface Batch {
 export interface TrainingRecord {
   id: string;
   createdAt: string;
-  wordCount: number;
   charCount: number;
-  avgWordLength: number;
-  syllables: number;
-  punctuation: number;
-  capitals: number;
-  batchSize: number;
   durationMs: number;
-  gapBeforeMs: number;
-  predictedMs?: number;
-  mode: AdvanceMode;
-  engine: EngineId;
-  speed: number;
 }
 
-export interface RegressionModel {
+export interface TrainingModel {
   version: 1;
-  trainedAt: string;
   sampleCount: number;
-  coefficients: number[];
-  featureMeans: number[];
-  featureScales: number[];
-  residualStdDev: number;
-  medianMsPerWord: number;
-  meanMsPerWord: number;
-  settings: {
-    ridgeLambda: number;
-    minSamples: number;
-    windowSize: number;
-  };
+  msPerChar: number;
+  trainedAt: string;
 }
 
-export interface TrainingBundle {
-  version: 1;
-  exportedAt: string;
+export interface AppSettings {
+  engine: EngineId;
+  voice: string;
+  speed: number;
+  batchSize: number;
+  batchMode: BatchMode;
+  advanceMode: AdvanceMode;
+  trainingCompleted: boolean;
+  msPerChar: number | null;
+}
+
+export interface TrainingStore {
   records: TrainingRecord[];
-  model: RegressionModel | null;
-  settings: TrainingSettings;
-}
-
-export interface TrainingSettings {
-  enabled: boolean;
-  minSamples: number;
-  windowSize: number;
-  ridgeLambda: number;
-}
-
-export interface VadUpdate {
-  rms: number;
-  level: number;
-  state: 'waiting' | 'speaking' | 'paused' | 'complete';
-  speechMs: number;
-  silenceMs: number;
-  estimatedWords: number;
-}
-
-export interface VadOptions {
-  silenceMs?: number;
-  minSpeechMs?: number;
-  expectedSpeechMs?: number;
-  expectedWords?: number;
-  onUpdate?: (update: VadUpdate) => void;
-  onComplete?: (reason: 'silence' | 'estimated') => void;
+  model: TrainingModel | null;
 }
 
 export interface KittenWordTiming {

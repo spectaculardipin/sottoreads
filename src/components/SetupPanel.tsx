@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   BookOpen,
   Clock,
   Hand,
   Info,
-  Mic,
   Sparkles,
   Trash2,
 } from 'lucide-react';
 import type { AppSettings } from '../lib/storage';
 import type { BatchMode, VoiceOption } from '../lib/types';
-import { makeBatches } from '../lib/text';
 import { FileDrop } from './FileDrop';
+
+const ACCEPT = '.pdf,.docx,.txt,.md,.text,application/pdf,text/plain';
 
 interface SetupPanelProps {
   text: string;
@@ -25,14 +25,13 @@ interface SetupPanelProps {
   parseProgress: number;
   fileName: string | null;
   onFile: (file: File) => void;
-  onOpenTraining: () => void;
-  recordsCount: number;
-  modelReady: boolean;
+  onStartTraining: () => void;
+  onExport: () => void;
+  onImport: (file: File) => void;
+  onReset: () => void;
   onLoadSample: () => void;
   onClear: () => void;
 }
-
-const ACCEPT = '.pdf,.docx,.txt,.md,.text,application/pdf,text/plain';
 
 export function SetupPanel({
   text,
@@ -46,16 +45,23 @@ export function SetupPanel({
   parseProgress,
   fileName,
   onFile,
-  onOpenTraining,
-  recordsCount,
-  modelReady,
+  onStartTraining,
+  onExport,
+  onImport,
+  onReset,
   onLoadSample,
   onClear,
 }: SetupPanelProps) {
+  const importRef = useRef<HTMLInputElement>(null);
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-  const batches = text.trim() ? makeBatches(text, settings.batchSize, settings.batchMode).length : 0;
+  const batches = !text.trim()
+    ? 0
+    : settings.batchMode === 'words'
+      ? Math.ceil(words / settings.batchSize)
+      : settings.batchMode === 'sentence'
+        ? Math.max(1, text.match(/[.!?]+/g)?.length ?? 1)
+        : Math.max(1, text.match(/[;:,]+/g)?.length ?? 1);
   const canStart = words > 0 && !isParsing;
-  const minSamples = settings.training.minSamples;
 
   return (
     <>
@@ -68,9 +74,9 @@ export function SetupPanel({
           Read. Write. <em>Keep pace.</em>
         </h1>
         <p>
-          Load your notes, hear them in small batches, and write at your own pace. The app can
-          listen for your voice or learn your rhythm and advance automatically. Everything stays
-          on your device.
+          Load your notes, hear them in small batches, and write at your own pace. Train your
+          personal pace once, then let Smart mode advance automatically. Everything stays on your
+          device.
         </p>
       </section>
 
@@ -198,17 +204,9 @@ export function SetupPanel({
                 </button>
               </div>
               <span className="field-note">
-                {settings.engine === 'kitten' ? (
-                  <>
-                    <strong>KittenTTS</strong> runs on your device. The first use downloads about
-                    25&nbsp;MB once and caches it in your browser.
-                  </>
-                ) : (
-                  <>
-                    Uses your browser&apos;s built-in voice. It is instant and needs no download,
-                    but some browsers may use an online voice service.
-                  </>
-                )}
+                {settings.engine === 'kitten'
+                  ? 'KittenTTS runs on your device. The voice model downloads once and is cached.'
+                  : 'Uses your browser’s built-in voice. Instant, no download.'}
               </span>
             </div>
 
@@ -257,82 +255,70 @@ export function SetupPanel({
                   type="button"
                   aria-pressed={settings.advanceMode === 'manual'}
                   onClick={() => onSettingsChange({ advanceMode: 'manual' })}
-                  title="Click Next when you finish writing"
                 >
                   <Hand size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />
                   Manual
                 </button>
                 <button
                   type="button"
-                  aria-pressed={settings.advanceMode === 'mic'}
-                  onClick={() => onSettingsChange({ advanceMode: 'mic' })}
-                  title="Listen for speech and pauses"
-                >
-                  <Mic size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                  Mic
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={settings.advanceMode === 'predicted'}
-                  onClick={() => onSettingsChange({ advanceMode: 'predicted' })}
-                  title="Use your personal timing model"
+                  aria-pressed={settings.advanceMode === 'smart'}
+                  onClick={() =>
+                    settings.trainingCompleted
+                      ? onSettingsChange({ advanceMode: 'smart' })
+                      : null
+                  }
+                  disabled={!settings.trainingCompleted}
+                  title={settings.trainingCompleted ? 'Use your learned pace' : 'Train first to unlock Smart mode'}
                 >
                   <Clock size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                  Predicted
+                  Smart
                 </button>
               </div>
               <span className="field-note">
-                {settings.advanceMode === 'manual' &&
-                  'You stay in control. Click Next when done.'}
-                {settings.advanceMode === 'mic' &&
-                  'The app listens for your voice and a short pause. Audio is never recorded.'}
-                {settings.advanceMode === 'predicted' &&
-                  (modelReady
-                    ? 'The app advances using your learned writing pace.'
-                    : 'Train a pace model first for personal predictions. Default timing is used until then.')}
+                {settings.advanceMode === 'manual'
+                  ? 'Click Next when you finish writing.'
+                  : 'Smart advances using your learned pace.'}
               </span>
             </div>
 
             <div className="switch-row">
               <div>
                 <div className="field-label" style={{ marginBottom: 2 }}>
-                  Learn my pace
-                  {modelReady && (
-                    <span className="pill ok" style={{ marginLeft: 8 }}>
-                      Model ready
-                    </span>
-                  )}
+                  Personal pace
                 </div>
                 <span className="field-note">
-                  {settings.training.enabled
-                    ? modelReady
-                      ? 'Training is on. Predictions improve with each batch.'
-                      : `Training is on. ${Math.max(0, minSamples - recordsCount)} more batches to build a model.`
-                    : 'Opt in to collect timing locally and predict your writing pace.'}
+                  {settings.trainingCompleted
+                    ? 'Training complete. Smart mode is unlocked.'
+                    : 'A short training session teaches the app your writing speed.'}
                 </span>
               </div>
-              <button
-                type="button"
-                className="switch"
-                role="switch"
-                aria-checked={settings.training.enabled}
-                aria-label="Enable local pace training"
-                onClick={() =>
-                  onSettingsChange({
-                    training: { ...settings.training, enabled: !settings.training.enabled },
-                  })
-                }
-              />
-            </div>
-
-            <div className="engine-status" aria-live="polite">
-              <span className="status-dot" />
-              <span>
-                {settings.engine === 'kitten'
-                  ? 'Local neural voice · runs on your device'
-                  : 'Browser voice · instant, no download'}
+              <span className={`pill${settings.trainingCompleted ? ' ok' : ' warn'}`}>
+                {settings.trainingCompleted ? 'Trained' : 'Not trained'}
               </span>
             </div>
+
+            <div className="data-actions" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <button type="button" className="link-btn" onClick={onExport}>
+                Export pace data
+              </button>
+              <button type="button" className="link-btn" onClick={() => importRef.current?.click()}>
+                Import
+              </button>
+              <button type="button" className="link-btn" onClick={onReset} style={{ color: 'var(--danger)' }}>
+                Reset
+              </button>
+            </div>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onImport(file);
+                event.target.value = '';
+              }}
+            />
 
             <div className="start-row">
               <button
@@ -344,17 +330,17 @@ export function SetupPanel({
                 <BookOpen size={18} strokeWidth={2} />
                 Start dictation
               </button>
-              <button type="button" className="link-btn" onClick={onOpenTraining}>
+              <button type="button" className="link-btn" onClick={onStartTraining}>
                 <Sparkles size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                Training &amp; privacy settings
+                Start training session
               </button>
             </div>
 
             <div className="privacy-note">
               <Info size={15} />
               <span>
-                Text, microphone analysis, and training data stay in this browser. No account, no
-                server, no paid API.
+                Text, timing, and training data stay in this browser. No account, no server, no
+                paid API. No microphone is used.
               </span>
             </div>
           </div>

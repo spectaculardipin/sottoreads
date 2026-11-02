@@ -2,56 +2,42 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BookOpen,
-  Brain,
   Check,
-  Clock,
-  Sparkles,
   Volume2,
   X,
 } from 'lucide-react';
 import { SetupPanel } from './components/SetupPanel';
 import { SessionPanel } from './components/SessionPanel';
-import { TrainingDrawer } from './components/TrainingDrawer';
-import { makeBatches, estimateDefaultWritingMs, estimateSpeechMs, splitWords, formatMs } from './lib/text';
-import { predictMs, trainModel, DEFAULT_TRAINING_SETTINGS } from './lib/model';
+import { TrainingPanel } from './components/TrainingPanel';
+import { makeBatches, makeTrainingBatches, splitWords, formatMs } from './lib/text';
+import { adjustMsPerChar, predictMs, trainModel } from './lib/model';
 import { createEngine } from './lib/tts';
-import { MicMonitor } from './lib/vad';
 import { parseFile } from './lib/files';
 import {
   clearTraining,
   downloadJson,
-  exportTraining,
   loadSettings,
   loadTraining,
   readJsonFile,
   saveSettings,
   saveTraining,
-  validateBundle,
   type AppSettings,
 } from './lib/storage';
 import type {
   Batch,
   EngineId,
-  RegressionModel,
+  FeedbackRating,
   SessionStatus,
   SpeechHandle,
+  TrainingModel,
   TrainingRecord,
-  TrainingSettings,
-  VadUpdate,
   VoiceOption,
 } from './lib/types';
 
-const PREDICTED_GRACE_MS = 1200;
-const AUTO_ADVANCE_PAUSE_MS = 900;
 const SAMPLE_TEXT =
   'The morning light moved slowly across the desk. Small habits, repeated daily, become the quiet architecture of a good life. Read each phrase aloud, then write it down with care.';
 
-type CompletionReason =
-  | 'manual'
-  | 'mic-silence'
-  | 'mic-estimated'
-  | 'predicted-auto'
-  | 'predicted-manual';
+type CompletionReason = 'manual' | 'smart-auto' | 'smart-manual';
 
 interface SessionStats {
   batches: number;
@@ -65,24 +51,20 @@ interface Runtime {
   index: number;
   activeHandle: SpeechHandle | null;
   handleCache: Map<string, SpeechHandle>;
-  mic: MicMonitor | null;
-  countdownTimer: number | null;
-  advanceTimer: number | null;
-  prefetchTimer: number | null;
-  playbackEndedAt: number;
-  gapBeforeMs: number;
+  batchStartAt: number;
+  startedAt: number;
   predictedMs: number | null;
   predictedTotal: number;
-  extended: boolean;
-  autoAdvanced: boolean;
+  timer: number | null;
+  prefetchTimer: number | null;
   cancelled: boolean;
   token: number;
   completing: boolean;
-  recorded: Set<number>;
-  startedAt: number;
-  lastCompletionAt: number;
   completedCount: number;
   completedWords: number;
+  training: boolean;
+  trainingRecords: TrainingRecord[];
+  recorded: Set<number>;
 }
 
 interface ToastState {
@@ -90,31 +72,27 @@ interface ToastState {
   type: 'info' | 'error';
 }
 
-function makeRuntime(engine: Runtime['engine'], batches: Batch[]): Runtime {
+function makeRuntime(engine: Runtime['engine'], batches: Batch[], training = false): Runtime {
   return {
     engine,
     batches,
     index: 0,
     activeHandle: null,
     handleCache: new Map(),
-    mic: null,
-    countdownTimer: null,
-    advanceTimer: null,
-    prefetchTimer: null,
-    playbackEndedAt: 0,
-    gapBeforeMs: 0,
+    batchStartAt: 0,
+    startedAt: 0,
     predictedMs: null,
     predictedTotal: 0,
-    extended: false,
-    autoAdvanced: false,
+    timer: null,
+    prefetchTimer: null,
     cancelled: false,
     token: 0,
     completing: false,
-    recorded: new Set(),
-    startedAt: 0,
-    lastCompletionAt: 0,
     completedCount: 0,
     completedWords: 0,
+    training,
+    trainingRecords: [],
+    recorded: new Set(),
   };
 }
 
@@ -134,9 +112,12 @@ export default function App() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [voices, setVoices] = useState<VoiceOption[]>([]);
-  const [records, setRecords] = useState<TrainingRecord[]>(() => loadTraining().records);
-  const [model, setModel] = useState<RegressionModel | null>(() => loadTraining().model);
+  const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>(
+    () => loadTraining().records,
+  );
+  const [model, setModel] = useState<TrainingModel | null>(() => loadTraining().model);
   const [sessionActive, setSessionActive] = useState(false);
+  const [trainingMode, setTrainingMode] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -145,14 +126,13 @@ export default function App() {
   const [engineProgress, setEngineProgress] = useState(0);
   const [engineStatus, setEngineStatus] = useState('Preparing voice');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [vadUpdate, setVadUpdate] = useState<VadUpdate | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [predictedTotal, setPredictedTotal] = useState(0);
   const [predictedMs, setPredictedMs] = useState<number | null>(null);
+  const [predictedTotal, setPredictedTotal] = useState(0);
   const [isParsing, setIsParsing] = useState(false);
   const [parseLabel, setParseLabel] = useState('Reading file');
   const [parseProgress, setParseProgress] = useState(0);
-  const [trainingOpen, setTrainingOpen] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackRating, setFeedbackRating] = useState<FeedbackRating | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [sessionStats, setSessionStats] = useState<SessionStats>({
     batches: 0,
@@ -162,7 +142,7 @@ export default function App() {
 
   const runtimeRef = useRef<Runtime | null>(null);
   const settingsRef = useRef(settings);
-  const recordsRef = useRef(records);
+  const trainingRecordsRef = useRef(trainingRecords);
   const modelRef = useRef(model);
   const textRef = useRef(text);
   const mountedRef = useRef(true);
@@ -174,8 +154,8 @@ export default function App() {
   }, [settings]);
 
   useEffect(() => {
-    recordsRef.current = records;
-  }, [records]);
+    trainingRecordsRef.current = trainingRecords;
+  }, [trainingRecords]);
 
   useEffect(() => {
     modelRef.current = model;
@@ -193,7 +173,6 @@ export default function App() {
       if (runtime) {
         runtime.cancelled = true;
         clearRuntimeTimers(runtime);
-        runtime.mic?.stop();
         runtime.engine.stop().catch(() => {});
         runtime.engine.dispose().catch(() => {});
         runtimeRef.current = null;
@@ -246,29 +225,14 @@ export default function App() {
     setSettings((current) => ({ ...current, ...patch }));
   }, []);
 
-  const updateTrainingSettings = useCallback((next: TrainingSettings) => {
-    setSettings((current) => ({ ...current, training: next }));
-  }, []);
-
   function clearRuntimeTimers(runtime: Runtime) {
-    if (runtime.countdownTimer !== null) {
-      window.clearInterval(runtime.countdownTimer);
-      runtime.countdownTimer = null;
-    }
-    if (runtime.advanceTimer !== null) {
-      window.clearTimeout(runtime.advanceTimer);
-      runtime.advanceTimer = null;
+    if (runtime.timer !== null) {
+      window.clearInterval(runtime.timer);
+      runtime.timer = null;
     }
     if (runtime.prefetchTimer !== null) {
       window.clearTimeout(runtime.prefetchTimer);
       runtime.prefetchTimer = null;
-    }
-  }
-
-  function stopMic(runtime: Runtime) {
-    if (runtime.mic) {
-      runtime.mic.stop();
-      runtime.mic = null;
     }
   }
 
@@ -285,7 +249,6 @@ export default function App() {
     runtime.cancelled = true;
     runtime.token += 1;
     clearRuntimeTimers(runtime);
-    stopMic(runtime);
     await stopAudio(runtime);
     runtime.handleCache.clear();
     await runtime.engine.dispose().catch(() => {});
@@ -330,6 +293,64 @@ export default function App() {
     setFileName(null);
   }, []);
 
+  async function startTrainingSession() {
+    const trainingBatches = makeTrainingBatches();
+    if (trainingBatches.length === 0) {
+      showToast('Training text could not be prepared.', 'error');
+      return;
+    }
+
+    const existing = runtimeRef.current;
+    if (existing) await disposeRuntime(existing);
+
+    const runtime = makeRuntime(createEngine(settingsRef.current.engine), trainingBatches, true);
+    runtimeRef.current = runtime;
+    setSessionActive(true);
+    setTrainingMode(true);
+    setCompleted(false);
+    setStatus('preparing');
+    setEngineProgress(0);
+    setEngineStatus('Preparing voice');
+    setErrorMessage(null);
+    setBatches(trainingBatches);
+    setCurrentIndex(0);
+    setActiveWord(-1);
+    setPredictedMs(null);
+    setPredictedTotal(0);
+    setShowFeedback(false);
+    setFeedbackRating(null);
+    setSessionStats({ batches: 0, words: 0, totalMs: 0 });
+
+    try {
+      await runtime.engine.init(
+        (progress, label) => {
+          if (runtime.cancelled) return;
+          setEngineProgress(progress);
+          setEngineStatus(label);
+        },
+        { voice: settingsRef.current.voice, speed: settingsRef.current.speed },
+      );
+
+      if (runtime.cancelled) {
+        await runtime.engine.dispose().catch(() => {});
+        return;
+      }
+
+      const nextVoices = runtime.engine.getVoices();
+      setVoices(nextVoices);
+      setEngineProgress(1);
+      setEngineStatus('Voice ready');
+      setStatus('ready');
+    } catch (error) {
+      if (runtime.cancelled) return;
+      setStatus('error');
+      setErrorMessage(
+        error instanceof Error ? error.message : 'The voice could not be prepared.',
+      );
+      setEngineStatus('Voice unavailable');
+    }
+  }
+
   async function startSession() {
     const words = splitWords(textRef.current);
     if (words.length === 0) {
@@ -347,12 +368,21 @@ export default function App() {
       return;
     }
 
+    if (
+      settingsRef.current.advanceMode === 'smart' &&
+      (!settingsRef.current.trainingCompleted || !modelRef.current)
+    ) {
+      showToast('Complete the short training session before using Smart mode.', 'error');
+      return;
+    }
+
     const existing = runtimeRef.current;
     if (existing) await disposeRuntime(existing);
 
     const runtime = makeRuntime(createEngine(settingsRef.current.engine), nextBatches);
     runtimeRef.current = runtime;
     setSessionActive(true);
+    setTrainingMode(false);
     setCompleted(false);
     setStatus('preparing');
     setEngineProgress(0);
@@ -361,22 +391,11 @@ export default function App() {
     setBatches(nextBatches);
     setCurrentIndex(0);
     setActiveWord(-1);
-    setCountdown(null);
     setPredictedMs(null);
     setPredictedTotal(0);
-    setVadUpdate(null);
-    setTrainingOpen(false);
+    setShowFeedback(false);
+    setFeedbackRating(null);
     setSessionStats({ batches: 0, words: 0, totalMs: 0 });
-
-    if (settingsRef.current.advanceMode === 'mic') {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
-      } catch {
-        showToast('Microphone permission was not granted. You can still use Next.', 'error');
-        setSettings((current) => ({ ...current, advanceMode: 'manual' }));
-      }
-    }
 
     try {
       await runtime.engine.init(
@@ -414,12 +433,12 @@ export default function App() {
       runtime.cancelled = true;
       runtime.token += 1;
       clearRuntimeTimers(runtime);
-      stopMic(runtime);
       await runtime.engine.stop().catch(() => {});
       await runtime.engine.dispose().catch(() => {});
       if (runtimeRef.current === runtime) runtimeRef.current = null;
     }
     setSessionActive(false);
+    setTrainingMode(false);
     setStatus('idle');
     setCompleted(false);
   }
@@ -439,7 +458,6 @@ export default function App() {
     const token = ++runtime.token;
     runtime.completing = false;
     clearRuntimeTimers(runtime);
-    stopMic(runtime);
     await stopAudio(runtime);
     if (runtime.cancelled || token !== runtime.token) return;
 
@@ -450,17 +468,12 @@ export default function App() {
     }
 
     runtime.index = index;
-    runtime.extended = false;
-    runtime.autoAdvanced = false;
-    runtime.playbackEndedAt = 0;
-    runtime.gapBeforeMs = runtime.lastCompletionAt
-      ? Math.max(0, performance.now() - runtime.lastCompletionAt)
-      : 0;
     runtime.predictedMs = null;
+    runtime.predictedTotal = 0;
     setCurrentIndex(index);
     setActiveWord(-1);
-    setVadUpdate(null);
-    setCountdown(null);
+    setPredictedMs(null);
+    setPredictedTotal(0);
     setStatus('batch-preparing');
 
     const settingsNow = settingsRef.current;
@@ -487,15 +500,19 @@ export default function App() {
 
     if (runtime.cancelled || token !== runtime.token) return;
 
-    const prediction = predictMs(modelRef.current, batch.stats);
-    runtime.predictedMs = prediction?.ms ?? estimateDefaultWritingMs(batch.stats);
-    runtime.predictedTotal = runtime.predictedMs + PREDICTED_GRACE_MS;
+    if (!runtime.training && settingsNow.advanceMode === 'smart' && modelRef.current) {
+      const predicted = predictMs(modelRef.current, batch.stats.charCount);
+      runtime.predictedMs = predicted;
+      runtime.predictedTotal = predicted ? predicted + 1200 : 0;
+      setPredictedMs(predicted);
+      setPredictedTotal(runtime.predictedTotal);
+    }
+
+    // Clock starts with dictation, not after it finishes.
+    runtime.batchStartAt = performance.now();
     runtime.activeHandle = handle;
-    setPredictedMs(runtime.predictedMs);
-    setPredictedTotal(runtime.predictedTotal);
     setStatus('playing');
 
-    // Prepare the next batch while this one plays.
     runtime.prefetchTimer = window.setTimeout(() => {
       void prefetchNext(index, token);
     }, 120);
@@ -514,7 +531,6 @@ export default function App() {
     }
 
     if (runtime.cancelled || token !== runtime.token) return;
-    runtime.playbackEndedAt = performance.now();
     setActiveWord(-1);
     handlePlaybackEnd();
   }
@@ -534,14 +550,11 @@ export default function App() {
         voice: settingsNow.voice,
         speed: settingsNow.speed,
       });
-      if (runtime.cancelled || token !== runtime.token) {
-        // The handle was never played. Discard it without stopping the shared player.
-        return;
-      }
+      if (runtime.cancelled || token !== runtime.token) return;
       runtime.handleCache.set(key, handle);
       pruneCache(runtime);
     } catch {
-      // Prefetch is best-effort. The batch will be prepared on demand.
+      // Prefetch is best-effort.
     }
   }
 
@@ -549,8 +562,6 @@ export default function App() {
     while (runtime.handleCache.size > 4) {
       const firstKey = runtime.handleCache.keys().next().value;
       if (typeof firstKey !== 'string') break;
-      // Do not call stop() on evicted handles: all handles share one audio player,
-      // so stopping a cached handle could stop the currently playing batch.
       runtime.handleCache.delete(firstKey);
     }
   }
@@ -558,106 +569,51 @@ export default function App() {
   function handlePlaybackEnd() {
     const runtime = runtimeRef.current;
     if (!runtime || runtime.cancelled) return;
+    if (runtime.training) {
+      setStatus('your-turn');
+      return;
+    }
     const mode = settingsRef.current.advanceMode;
-    if (mode === 'mic') {
-      startListening();
-    } else if (mode === 'predicted') {
-      startPredictedCountdown();
+    if (mode === 'smart' && runtime.predictedMs) {
+      startSmartTimer();
     } else {
       setStatus('your-turn');
-      setCountdown(null);
     }
   }
 
-  async function startListening() {
+  function startSmartTimer() {
     const runtime = runtimeRef.current;
     if (!runtime || runtime.cancelled) return;
     const token = runtime.token;
-    const batch = runtime.batches[runtime.index];
-    if (!batch) return;
-
-    const expectedSpeech = estimateSpeechMs(batch.words, settingsRef.current.speed);
-    const monitor = new MicMonitor({
-      silenceMs: 1300,
-      minSpeechMs: 260,
-      expectedSpeechMs: expectedSpeech,
-      expectedWords: batch.words.length,
-      onUpdate: (update) => {
-        if (runtimeRef.current === runtime && runtime.token === token) {
-          setVadUpdate(update);
-        }
-      },
-      onComplete: (reason) => {
-        if (runtimeRef.current !== runtime || runtime.token !== token) return;
-        setVadUpdate(null);
-        void completeBatch(reason === 'silence' ? 'mic-silence' : 'mic-estimated');
-      },
-    });
-
-    runtime.mic = monitor;
-    setStatus('listening');
-
-    try {
-      await monitor.start();
-    } catch (error) {
-      if (runtimeRef.current !== runtime || runtime.token !== token) return;
-      setStatus('your-turn');
-      setVadUpdate(null);
-      showToast(
-        error instanceof Error
-          ? `${error.message} Use Next instead.`
-          : 'Microphone unavailable. Use Next instead.',
-        'error',
-      );
-      setSettings((current) => ({ ...current, advanceMode: 'manual' }));
-    }
-  }
-
-  function startPredictedCountdown() {
-    const runtime = runtimeRef.current;
-    if (!runtime || runtime.cancelled) return;
-    const token = runtime.token;
-    const batch = runtime.batches[runtime.index];
-    if (!batch) return;
-
-    const predicted = runtime.predictedMs ?? estimateDefaultWritingMs(batch.stats);
-    runtime.predictedTotal = predicted + PREDICTED_GRACE_MS;
-    setPredictedTotal(runtime.predictedTotal);
-    setCountdown(runtime.predictedTotal);
-    setStatus('your-turn');
-
+    const total = runtime.predictedTotal ?? 0;
     const started = performance.now();
-    runtime.countdownTimer = window.setInterval(() => {
+    setStatus('your-turn');
+    setPredictedTotal(total);
+
+    runtime.timer = window.setInterval(() => {
       const active = runtimeRef.current;
-      if (!active || active !== runtime || active.token !== token || active.extended) {
-        if (runtime.countdownTimer !== null) {
-          window.clearInterval(runtime.countdownTimer);
-          runtime.countdownTimer = null;
+      if (!active || active !== runtime || active.token !== token) {
+        if (runtime.timer !== null) {
+          window.clearInterval(runtime.timer);
+          runtime.timer = null;
         }
         return;
       }
 
-      const remaining = Math.max(0, runtime.predictedTotal - (performance.now() - started));
-      setCountdown(remaining);
+      const remaining = Math.max(0, total - (performance.now() - started));
+      setPredictedTotal(remaining);
 
       if (remaining <= 0) {
-        if (runtime.countdownTimer !== null) {
-          window.clearInterval(runtime.countdownTimer);
-          runtime.countdownTimer = null;
+        if (runtime.timer !== null) {
+          window.clearInterval(runtime.timer);
+          runtime.timer = null;
         }
-        runtime.autoAdvanced = true;
-        setCountdown(0);
-        setStatus('paused');
-        runtime.advanceTimer = window.setTimeout(() => {
-          if (runtimeRef.current === runtime && runtime.token === token) {
-            void completeBatch('predicted-auto');
-          }
-        }, 700);
+        void completeBatch('smart-auto');
       }
     }, 120);
   }
 
-  async function completeBatch(reason: CompletionReason) {
+  async function completeBatch(_reason: CompletionReason) {
     const runtime = runtimeRef.current;
     if (!runtime || runtime.cancelled || runtime.completing) return;
     runtime.completing = true;
@@ -665,9 +621,6 @@ export default function App() {
     const token = runtime.token;
 
     clearRuntimeTimers(runtime);
-    stopMic(runtime);
-    setVadUpdate(null);
-    setCountdown(null);
     await stopAudio(runtime);
     if (runtime.cancelled || token !== runtime.token) return;
 
@@ -677,15 +630,20 @@ export default function App() {
       return;
     }
 
-    const completedAt = performance.now();
+    // Timing: from dictation start to completion.
+    const durationMs = Math.max(0, performance.now() - runtime.batchStartAt);
     runtime.completedCount += 1;
     runtime.completedWords += batch.stats.wordCount;
 
-    if (reason !== 'predicted-auto' && trainingEnabled()) {
-      recordCompletion(runtime, batch, reason);
+    if (runtime.training && durationMs > 350 && !runtime.recorded.has(runtime.index)) {
+      runtime.recorded.add(runtime.index);
+      runtime.trainingRecords.push({
+        id: newId(),
+        createdAt: new Date().toISOString(),
+        charCount: batch.stats.charCount,
+        durationMs,
+      });
     }
-
-    runtime.lastCompletionAt = completedAt;
 
     if (runtime.index >= runtime.batches.length - 1) {
       endSession();
@@ -693,92 +651,28 @@ export default function App() {
     }
 
     setStatus('paused');
-    runtime.advanceTimer = window.setTimeout(() => {
+    runtime.timer = window.setTimeout(() => {
       if (runtimeRef.current === runtime && runtime.token === token) {
         void startBatch(runtime.index + 1);
       }
-    }, AUTO_ADVANCE_PAUSE_MS);
-  }
-
-  function trainingEnabled(): boolean {
-    return settingsRef.current.training.enabled;
-  }
-
-  function recordCompletion(runtime: Runtime, batch: Batch, reason: CompletionReason) {
-    if (runtime.recorded.has(runtime.index)) return;
-    const durationMs =
-      runtime.playbackEndedAt > 0 ? performance.now() - runtime.playbackEndedAt : 0;
-    if (durationMs < 350) return;
-
-    const settingsNow = settingsRef.current;
-    const gapBeforeMs = runtime.gapBeforeMs;
-
-    const record: TrainingRecord = {
-      id: newId(),
-      createdAt: new Date().toISOString(),
-      wordCount: batch.stats.wordCount,
-      charCount: batch.stats.charCount,
-      avgWordLength: batch.stats.avgWordLength,
-      syllables: batch.stats.syllables,
-      punctuation: batch.stats.punctuation,
-      capitals: batch.stats.capitals,
-      batchSize: batch.stats.wordCount,
-      durationMs,
-      gapBeforeMs,
-      predictedMs: runtime.predictedMs ?? undefined,
-      mode: settingsNow.advanceMode,
-      engine: runtime.engine.id,
-      speed: settingsNow.speed,
-    };
-
-    const nextRecords = [...recordsRef.current, record];
-    const wasReady = Boolean(modelRef.current);
-    const nextModel = trainModel(nextRecords, settingsNow.training);
-
-    recordsRef.current = nextRecords;
-    modelRef.current = nextModel;
-    setRecords(nextRecords);
-    setModel(nextModel);
-    saveTraining({ records: nextRecords, model: nextModel });
-    runtime.recorded.add(runtime.index);
-
-    if (nextModel && !wasReady) {
-      showToast('Your personal pace model is ready. Predicted advance is now available.');
-    }
-
-    void reason;
+    }, 700);
   }
 
   function next() {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     const current = status;
-    if (current === 'playing' || current === 'preparing' || current === 'batch-preparing') {
-      skipCurrent();
+    if (current === 'playing') {
+      // The reader may finish writing before the audio ends; stop and complete now.
+      void completeBatch('manual');
       return;
     }
-    if (current === 'your-turn' || current === 'listening' || current === 'paused') {
-      void completeBatch(settingsRef.current.advanceMode === 'predicted' ? 'predicted-manual' : 'manual');
-    }
-  }
-
-  async function skipCurrent() {
-    const runtime = runtimeRef.current;
-    if (!runtime) return;
-    runtime.token += 1;
-    clearRuntimeTimers(runtime);
-    stopMic(runtime);
-    setVadUpdate(null);
-    setCountdown(null);
-    await stopAudio(runtime);
-    if (runtime.index >= runtime.batches.length - 1) {
-      endSession();
+    if (current === 'preparing' || current === 'batch-preparing') {
       return;
     }
-    setStatus('paused');
-    window.setTimeout(() => {
-      if (runtimeRef.current === runtime) void startBatch(runtime.index + 1);
-    }, 400);
+    if (current === 'your-turn' || current === 'paused') {
+      void completeBatch('smart-manual');
+    }
   }
 
   async function previous() {
@@ -786,9 +680,6 @@ export default function App() {
     if (!runtime) return;
     runtime.token += 1;
     clearRuntimeTimers(runtime);
-    stopMic(runtime);
-    setVadUpdate(null);
-    setCountdown(null);
     await stopAudio(runtime);
     if (runtime.index > 0) {
       void startBatch(runtime.index - 1);
@@ -801,9 +692,6 @@ export default function App() {
     const index = runtime.index;
     runtime.token += 1;
     clearRuntimeTimers(runtime);
-    stopMic(runtime);
-    setVadUpdate(null);
-    setCountdown(null);
     await stopAudio(runtime);
     void startBatch(index);
   }
@@ -811,12 +699,14 @@ export default function App() {
   function moreTime() {
     const runtime = runtimeRef.current;
     if (!runtime) return;
-    runtime.extended = true;
-    if (runtime.countdownTimer !== null) {
-      window.clearInterval(runtime.countdownTimer);
-      runtime.countdownTimer = null;
+    if (runtime.timer !== null) {
+      window.clearInterval(runtime.timer);
+      runtime.timer = null;
     }
-    setCountdown(null);
+    runtime.predictedMs = null;
+    runtime.predictedTotal = 0;
+    setPredictedMs(null);
+    setPredictedTotal(0);
     setStatus('your-turn');
     showToast('Take your time. Click Next when you finish writing.');
   }
@@ -832,13 +722,44 @@ export default function App() {
     runtime.cancelled = true;
     runtime.token += 1;
     clearRuntimeTimers(runtime);
-    stopMic(runtime);
     await stopAudio(runtime);
     runtime.handleCache.clear();
     await runtime.engine.dispose().catch(() => {});
     if (runtimeRef.current === runtime) runtimeRef.current = null;
 
-    const totalMs = runtime.startedAt > 0 ? performance.now() - runtime.startedAt : 0;
+    if (runtime.training) {
+      const records = runtime.trainingRecords;
+      const nextModel = trainModel(records);
+      if (nextModel) {
+        trainingRecordsRef.current = records;
+        modelRef.current = nextModel;
+        setTrainingRecords(records);
+        setModel(nextModel);
+        const nextSettings = {
+          ...settingsRef.current,
+          trainingCompleted: true,
+          msPerChar: nextModel.msPerChar,
+          advanceMode: 'smart' as const,
+        };
+        settingsRef.current = nextSettings;
+        setSettings(nextSettings);
+        saveSettings(nextSettings);
+        saveTraining({ records, model: nextModel });
+        showToast(`Training complete — Smart mode unlocked (${records.length} batches).`);
+      } else {
+        showToast('Not enough timing data yet. Complete at least 3 training batches.', 'error');
+      }
+      setSessionActive(false);
+      setCompleted(false);
+      setStatus('idle');
+      setActiveWord(-1);
+      setShowFeedback(false);
+      setTrainingMode(false);
+      return;
+    }
+
+    const totalMs =
+      runtime.startedAt > 0 ? performance.now() - runtime.startedAt : 0;
     setSessionStats({
       batches: runtime.completedCount,
       words: runtime.completedWords,
@@ -847,21 +768,25 @@ export default function App() {
     setSessionActive(false);
     setCompleted(true);
     setStatus('complete');
-    setVadUpdate(null);
-    setCountdown(null);
     setActiveWord(-1);
+    setShowFeedback(Boolean(modelRef.current));
   }
 
   async function retry() {
     const runtime = runtimeRef.current;
     if (runtime) await disposeRuntime(runtime);
-    await startSession();
+    if (trainingMode) {
+      await startTrainingSession();
+    } else {
+      await startSession();
+    }
   }
 
   async function backToSetup() {
     const runtime = runtimeRef.current;
     if (runtime) await disposeRuntime(runtime);
     setSessionActive(false);
+    setTrainingMode(false);
     setCompleted(false);
     setStatus('idle');
   }
@@ -870,48 +795,85 @@ export default function App() {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     const last = runtime.index >= runtime.batches.length - 1;
-    if (!last && !window.confirm('End this session? Your completed batches are saved.')) {
+    if (!last && !window.confirm('End this session?')) {
       return;
     }
     await endSession();
   }
 
+  function handleSubmitFeedback() {
+    if (!feedbackRating) return;
+    const nextModel = modelRef.current
+      ? adjustMsPerChar(modelRef.current, feedbackRating)
+      : null;
+    const nextMsPerChar = nextModel?.msPerChar ?? null;
+    setModel(nextModel);
+    modelRef.current = nextModel;
+    setSettings((current) => ({
+      ...current,
+      msPerChar: nextMsPerChar,
+    }));
+    saveSettings({ ...settingsRef.current, msPerChar: nextMsPerChar });
+    saveTraining({ records: trainingRecordsRef.current, model: nextModel });
+    setShowFeedback(false);
+    showToast('Thanks — your pace estimate was adjusted.');
+  }
+
   function handleExport() {
-    if (records.length === 0) {
+    if (trainingRecords.length === 0) {
       showToast('No training data to export yet.', 'error');
       return;
     }
-    const bundle = exportTraining(records, model, settings.training);
-    const date = new Date().toISOString().slice(0, 10);
-    downloadJson(`dictate-training-${date}.json`, bundle);
+    downloadJson(`dictate-training-${new Date().toISOString().slice(0, 10)}.json`, {
+      records: trainingRecords,
+      model,
+      msPerChar: settings.msPerChar,
+    });
     showToast('Training data exported as JSON.');
   }
 
   async function handleImport(file: File) {
     try {
       const raw = await readJsonFile(file);
-      const bundle = validateBundle(raw);
-      if (!bundle) {
-        showToast('That file is not a valid Dictate training export.', 'error');
-        return;
-      }
+      if (!raw || typeof raw !== 'object') throw new Error('Invalid file.');
+      const data = raw as { records?: unknown; model?: unknown; msPerChar?: number };
+      const records = Array.isArray(data.records)
+        ? data.records.filter(
+            (r: unknown) =>
+              r &&
+              typeof r === 'object' &&
+              typeof (r as { charCount?: number }).charCount === 'number' &&
+              typeof (r as { durationMs?: number }).durationMs === 'number',
+          )
+        : [];
+      const nextModel = data.model && (data.model as { version?: number }).version === 1
+        ? (data.model as TrainingModel)
+        : trainModel(records as TrainingRecord[]);
+      const nextMsPerChar = data.msPerChar ?? nextModel?.msPerChar ?? null;
 
-      const nextRecords = bundle.records;
-      const nextModel = bundle.model ?? trainModel(nextRecords, bundle.settings);
-      const nextTraining: TrainingSettings = {
-        ...DEFAULT_TRAINING_SETTINGS,
-        ...bundle.settings,
-      };
-
-      recordsRef.current = nextRecords;
-      modelRef.current = nextModel;
-      setRecords(nextRecords);
+      trainingRecordsRef.current = records as TrainingRecord[];
+      setTrainingRecords(records as TrainingRecord[]);
       setModel(nextModel);
-      setSettings((current) => ({ ...current, training: nextTraining }));
-      saveTraining({ records: nextRecords, model: nextModel });
-      saveSettings({ ...settingsRef.current, training: nextTraining });
+      modelRef.current = nextModel;
+      setSettings((current) => ({
+        ...current,
+        trainingCompleted: Boolean(nextModel),
+        msPerChar: nextMsPerChar,
+        advanceMode: nextModel ? current.advanceMode : 'manual',
+      }));
+      saveTraining({
+        records: records as TrainingRecord[],
+        model: nextModel,
+      });
+      saveSettings({
+        ...settingsRef.current,
+        trainingCompleted: Boolean(nextModel),
+        msPerChar: nextMsPerChar,
+      });
       showToast(
-        `Imported ${nextRecords.length} training batches${nextModel ? ' and a pace model' : ''}.`,
+        `Imported ${records.length} training batches${
+          nextModel ? ' and a pace model' : ''
+        }.`,
       );
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Could not import that file.', 'error');
@@ -921,34 +883,48 @@ export default function App() {
   function handleReset() {
     if (!window.confirm('Delete all local training data? This cannot be undone.')) return;
     clearTraining();
-    recordsRef.current = [];
-    modelRef.current = null;
-    setRecords([]);
+    trainingRecordsRef.current = [];
+    setTrainingRecords([]);
     setModel(null);
+    modelRef.current = null;
     setSettings((current) => ({
       ...current,
-      training: { ...current.training, enabled: false },
+      trainingCompleted: false,
+      msPerChar: null,
+      advanceMode: 'manual',
     }));
+    saveSettings({
+      ...settingsRef.current,
+      trainingCompleted: false,
+      msPerChar: null,
+    });
     showToast('Training data deleted from this browser.');
   }
 
   function handleRepeat() {
     setCompleted(false);
     setSessionActive(false);
+    setTrainingMode(false);
     setStatus('idle');
-    // Start a new session with the same text on the next tick so the UI resets first.
+    setShowFeedback(false);
+    setFeedbackRating(null);
     window.setTimeout(() => void startSession(), 0);
   }
 
   function handleNewText() {
     setCompleted(false);
     setSessionActive(false);
+    setTrainingMode(false);
     setStatus('idle');
+    setShowFeedback(false);
+    setFeedbackRating(null);
   }
 
   const batch = batches[currentIndex] ?? null;
-  const trainingOn = settings.training.enabled;
-  const modelReady = Boolean(model);
+  const smartReady =
+    settings.advanceMode === 'smart' &&
+    settings.trainingCompleted &&
+    Boolean(model);
 
   return (
     <div className="app">
@@ -970,12 +946,7 @@ export default function App() {
             <span className="brand-name">Dictate</span>
             <span className="brand-tag">read, write, keep pace</span>
           </button>
-          <div className="header-actions">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTrainingOpen(true)}>
-              <Brain size={15} />
-              Training
-            </button>
-          </div>
+          <div className="header-actions" />
         </div>
       </header>
 
@@ -993,15 +964,37 @@ export default function App() {
             parseProgress={parseProgress}
             fileName={fileName}
             onFile={handleFile}
-            onOpenTraining={() => setTrainingOpen(true)}
-            recordsCount={records.length}
-            modelReady={modelReady}
+            onStartTraining={startTrainingSession}
+            onExport={handleExport}
+            onImport={handleImport}
+            onReset={handleReset}
             onLoadSample={loadSample}
             onClear={clearText}
           />
         )}
 
-        {sessionActive && (
+        {sessionActive && trainingMode && (
+          <TrainingPanel
+            batches={makeTrainingBatches()}
+            currentIndex={currentIndex}
+            batch={batch}
+            status={status}
+            activeWord={activeWord}
+            engineStatus={engineStatus}
+            errorMessage={errorMessage}
+            predictedMs={predictedMs}
+            onBegin={beginSession}
+            onNext={next}
+            onPrevious={previous}
+            onReplay={replay}
+            onEnd={handleEnd}
+            onCancelStart={cancelStart}
+            onRetry={retry}
+            onBack={backToSetup}
+          />
+        )}
+
+        {sessionActive && !trainingMode && (
           <SessionPanel
             status={status}
             batch={batch}
@@ -1009,14 +1002,9 @@ export default function App() {
             batchCount={batches.length}
             activeWord={activeWord}
             advanceMode={settings.advanceMode}
-            vadUpdate={vadUpdate}
-            countdown={countdown}
-            predictedTotal={predictedTotal}
             predictedMs={predictedMs}
-            modelReady={modelReady}
-            trainingEnabled={trainingOn}
-            recordsCount={records.length}
-            minSamples={settings.training.minSamples}
+            predictedTotal={predictedTotal}
+            smartReady={smartReady}
             engineProgress={engineProgress}
             engineStatus={engineStatus}
             errorMessage={errorMessage}
@@ -1029,33 +1017,25 @@ export default function App() {
             onCancelStart={cancelStart}
             onRetry={retry}
             onBack={backToSetup}
-            onOpenTraining={() => setTrainingOpen(true)}
           />
         )}
 
         {completed && (
           <CompletePanel
             stats={sessionStats}
-            trainingEnabled={trainingOn}
-            modelReady={modelReady}
+            showFeedback={showFeedback}
+            feedbackRating={feedbackRating}
+            onFeedbackChange={setFeedbackRating}
+            onSubmitFeedback={handleSubmitFeedback}
+            onSkip={() => {
+              setFeedbackRating(null);
+              setShowFeedback(false);
+            }}
             onRepeat={handleRepeat}
             onNewText={handleNewText}
-            onOpenTraining={() => setTrainingOpen(true)}
           />
         )}
       </main>
-
-      <TrainingDrawer
-        open={trainingOpen}
-        onClose={() => setTrainingOpen(false)}
-        settings={settings.training}
-        onSettingsChange={updateTrainingSettings}
-        records={records}
-        model={model}
-        onExport={handleExport}
-        onImport={handleImport}
-        onReset={handleReset}
-      />
 
       {toast && (
         <div className={`toast${toast.type === 'error' ? ' error' : ''}`} role="status" aria-live="polite">
@@ -1077,18 +1057,22 @@ export default function App() {
 
 function CompletePanel({
   stats,
-  trainingEnabled,
-  modelReady,
+  showFeedback,
+  feedbackRating,
+  onFeedbackChange,
+  onSubmitFeedback,
+  onSkip,
   onRepeat,
   onNewText,
-  onOpenTraining,
 }: {
   stats: SessionStats;
-  trainingEnabled: boolean;
-  modelReady: boolean;
+  showFeedback: boolean;
+  feedbackRating: FeedbackRating | null;
+  onFeedbackChange: (rating: FeedbackRating | null) => void;
+  onSubmitFeedback: () => void;
+  onSkip: () => void;
   onRepeat: () => void;
   onNewText: () => void;
-  onOpenTraining: () => void;
 }) {
   return (
     <div className="complete">
@@ -1124,19 +1108,58 @@ function CompletePanel({
           Back to setup
         </button>
       </div>
-      <div style={{ marginTop: 18, fontSize: 12, color: 'var(--muted)' }}>
-        {trainingEnabled ? (
-          <span className="pill ok">
-            <Sparkles size={12} />
-            {modelReady ? 'Pace model updated' : 'Training data saved'}
-          </span>
-        ) : (
-          <button type="button" className="link-btn" onClick={onOpenTraining}>
-            <Clock size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            Turn on pace training to improve predictions
-          </button>
-        )}
-      </div>
+
+      {showFeedback && (
+        <div style={{ marginTop: 22, padding: 16, border: '1px solid var(--line)', borderRadius: 12, background: '#fff' }}>
+          <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>
+            How was the pacing?
+          </p>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            {[
+              { id: 'too-slow', label: 'Too slow' },
+              { id: 'a-little-slow', label: 'A little slow' },
+              { id: 'okay', label: 'Okay' },
+              { id: 'a-little-fast', label: 'A little fast' },
+              { id: 'too-fast', label: 'Too fast' },
+            ].map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={`btn btn-sm${feedbackRating === option.id ? ' btn-primary' : ' btn-ghost'}`}
+                onClick={() => onFeedbackChange(option.id as FeedbackRating)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ marginTop: 10, textAlign: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={onSubmitFeedback}
+              disabled={!feedbackRating}
+            >
+              Save feedback
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ marginLeft: 8 }}
+              onClick={onSkip}
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

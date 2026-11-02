@@ -2,6 +2,32 @@ import type { Batch, BatchMode, TextStats } from './types';
 
 const WORD_SPLIT = /\s+/;
 
+export const TRAINING_TEXT =
+  'a an in on up at by to is it.\n' +
+  'a.\n' +
+  'internationalization incomprehensible antidisestablishmentarianism.\n' +
+  'antidisestablishmentarianism.\n' +
+  'the extraordinarily small cat jumped over the lazy dog.\n' +
+  'well-known state-of-the-art mother-in-law six-year-old.\n' +
+  'short long tiny huge big small x z q p.\n' +
+  'unbelievably magnificent spectacular wonderful incredible.\n' +
+  'cat dog bird fish cow pig.\n' +
+  'anti-inflammatory over-the-counter sister-in-law editor-in-chief.\n';
+
+/** Build batches from the fixed training text (one batch per line/sentence). */
+export function makeTrainingBatches(): Batch[] {
+  const lines = TRAINING_TEXT.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  return lines.map((text, index) => {
+    const words = splitWords(text);
+    return {
+      index,
+      text,
+      words,
+      stats: getTextStats(words),
+    };
+  });
+}
+
 export function normalizeText(input: string): string {
   return input
     .replace(/\r\n?/g, '\n')
@@ -69,7 +95,10 @@ export function makeBatches(
       .map((segment) => segment.trim())
       .filter(Boolean);
 
-    if (segments.length > 1) {
+    // A single short sentence/phrase is a valid batch; a huge unpunctuated blob is not.
+    const singleIsReasonable =
+      segments.length === 1 && splitWords(segments[0]).length <= 40;
+    if (segments.length > 1 || singleIsReasonable) {
       return segments.map((segment, index) => {
         const segmentWords = splitWords(segment);
         return {
