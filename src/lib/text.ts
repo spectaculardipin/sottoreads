@@ -2,22 +2,25 @@ import type { Batch, BatchMode, TextStats } from './types';
 
 const WORD_SPLIT = /\s+/;
 
-export const TRAINING_TEXT =
-  'a an in on up at by to is it.\n' +
-  'a.\n' +
-  'internationalization incomprehensible antidisestablishmentarianism.\n' +
-  'antidisestablishmentarianism.\n' +
-  'the extraordinarily small cat jumped over the lazy dog.\n' +
-  'well-known state-of-the-art mother-in-law six-year-old.\n' +
-  'short long tiny huge big small x z q p.\n' +
-  'unbelievably magnificent spectacular wonderful incredible.\n' +
-  'cat dog bird fish cow pig.\n' +
-  'anti-inflammatory over-the-counter sister-in-law editor-in-chief.\n';
+const TRAINING_LINES = [
+  'The old lighthouse',
+  'quietly guides lost sailors',
+  'through storm-filled waters,',
+  'while distant stars',
+  'illuminate their uncertain paths.',
+  'A young explorer',
+  'discovers hidden maps',
+  'beneath weather-worn wooden floorboards',
+  'and follows their strange,',
+  'hand-drawn symbols',
+  'toward tomorrow.',
+];
 
-/** Build batches from the fixed training text (one batch per line/sentence). */
+export const TRAINING_TEXT = TRAINING_LINES.join(' ');
+
+/** Build batches from the fixed training text (one batch per line). */
 export function makeTrainingBatches(): Batch[] {
-  const lines = TRAINING_TEXT.split(/\n+/).map((line) => line.trim()).filter(Boolean);
-  return lines.map((text, index) => {
+  return TRAINING_LINES.map((text, index) => {
     const words = splitWords(text);
     return {
       index,

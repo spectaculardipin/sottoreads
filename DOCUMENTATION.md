@@ -5,7 +5,8 @@ Static, browser-only dictation app. No backend, no microphone, no paid APIs. Rea
 > **Current product rules**
 > - Two advance modes: **Manual** and **Smart**.
 > - **Smart is locked until a training session completes.** Training is mandatory once; it is not a per-session toggle.
-> - Training is a fixed, built-in dictation script with 10 deliberately varied batches.
+> - Training is a fixed, built-in dictation passage split into eleven short phrase batches.
+> - A three-slide guide explains training before a session starts; the same guide is reachable from the brain menu.
 > - Training stores only `{ charCount, durationMs }` per batch; the model is one number: **ms per character**.
 > - The clock starts when dictation starts (before playback), and **Next works during playback** so writing completion is captured accurately.
 > - No microphone anywhere. `public/_headers` denies it.
@@ -30,7 +31,9 @@ Cloudflare Pages: build `npm run build`, output `dist`. `public/_headers` sets C
 | `src/App.tsx` | All session state, runtime, timing, training mode, feedback, import/export, view routing, inline `CompletePanel`. **Most changes start here.** |
 | `src/components/SetupPanel.tsx` | Setup UI: text tabs, batch mode, engine/voice/speed, Manual/Smart selector, training status, export/import/reset, start buttons. |
 | `src/components/SessionPanel.tsx` | Normal dictation UI: preparing/ready/error/active, word highlighting, Smart countdown, Previous/Replay/More time/Next. |
-| `src/components/TrainingPanel.tsx` | Training dictation UI: same states, manual-only, progress “Training 1 of 10”. |
+| `src/components/TrainingPanel.tsx` | Training dictation UI: same states, manual-only, progress “Training n of 11”. |
+| `src/components/TrainingGuide.tsx` | Three-slide pre-training guide modal: learned pace, write-then-Next discipline, export/import/reset. Opened before training and from the brain menu. |
+| `src/components/BrainMenu.tsx` | Header brain button + overlay menu: how training works, export, import, reset. |
 | `src/components/FileDrop.tsx` | Drag/drop + file picker, parsing progress. |
 | `src/lib/types.ts` | `AppSettings`, `Batch`, `TextStats`, `TrainingRecord`, `TrainingModel`, `SessionStatus`, `AdvanceMode`, `BatchMode`, `FeedbackRating`, TTS interfaces. |
 | `src/lib/storage.ts` | localStorage keys, defaults, load/save, `AppSettings` re-export, JSON download/read. |
@@ -38,7 +41,7 @@ Cloudflare Pages: build `npm run build`, output `dist`. `public/_headers` sets C
 | `src/lib/text.ts` | `TRAINING_TEXT`, `makeTrainingBatches`, `makeBatches` (words/sentence/phrase), `splitWords`, `getTextStats`, formatting. |
 | `src/lib/tts.ts` | `createEngine`, `KittenEngine` (local bundle), `BrowserEngine` (speechSynthesis), `loadKittenBundle`. |
 | `src/lib/files.ts` | `parseFile`: PDF (`pdfjs-dist`), DOCX (`mammoth`), text, `cleanMarkdown`. |
-| `src/index.css` | Design tokens + all UI classes (blue/white minimal theme). |
+| `src/index.css` | Design tokens + all UI classes (Claude-style warm parchment editorial theme: serif headings, terracotta accent, ring shadows). |
 | `public/vendor/kittentts-web.js` | Prebuilt KittenTTS bundle, lazy-loaded. Do not edit. |
 | `public/_headers`, `_redirects` | Cloudflare headers (COOP/COEP, deny mic) and SPA fallback. |
 | `README.md` | User-facing overview/deploy. |
@@ -75,16 +78,18 @@ Runtime is a `useRef` object in `App.tsx` (`Runtime`): `engine, batches, index, 
 ```
 Setup view  (!sessionActive && !completed)
   ├─ Start dictation ──> startSession ──> engine init ──> status 'ready'
+  ├─ Start training session ──> TrainingGuide modal ──> Start training ──> startTrainingSession
+  │                             (guide also opens from the header brain menu)
   └─ Start training  ──> startTrainingSession ──> engine init ──> status 'ready' + trainingMode
         └─ Begin training ──> beginSession ──> startBatch(0)
 Ready ──> Begin ──> startBatch(i)
 startBatch:
   stop old audio/timers
-  prepare handle (cache or engine.prepare)
-  if smart && model: predictedMs = predictMs(model, charCount); predictedTotal = predictedMs + 1200
+  prepare handle (cache or pending prepare or engine.prepare)
+  if smart && model: predictedMs = predictMs(model, charCount); predictedTotal = predictedMs
   batchStartAt = performance.now()        // clock starts with dictation
   status 'playing' -> handle.play()
-  schedule prefetch of next batch (120 ms)
+  schedule prefetch of the next 3 batches (120 ms)
 after playback:
   training ? status 'your-turn' (manual only)
            : smart && predictedMs ? startSmartTimer()
@@ -97,9 +102,9 @@ completeBatch:
   guard completing; token++
   duration = now - batchStartAt
   if training && duration>350 && !recorded.has(index): push {charCount,durationMs}; recorded.add
-  last batch -> endSession(); else status 'paused', 700 ms, startBatch(i+1)
+  last batch -> endSession(); else startBatch(i+1) immediately
 Smart timer:
-  interval 120 ms; remaining = predictedTotal - elapsed; at 0 -> completeBatch('smart-auto')
+  interval 120 ms; remaining = predictedTotal - (now - batchStartAt); at 0 -> completeBatch('smart-auto')
 endSession:
   training -> trainModel(records); if >=3 usable: save model, msPerChar, trainingCompleted=true,
               advanceMode='smart', toast, return to setup
@@ -126,9 +131,10 @@ endSession:
 - Training is manual-only: `handlePlaybackEnd` forces `your-turn` when `runtime.training`.
 - `predictMs(model, charCount)`: `max(800, charCount * msPerChar)`; returns null for invalid model.
 - `adjustMsPerChar(model, rating)` factors: `too-slow 0.85`, `a-little-slow 0.925`, `okay 1.0`, `a-little-fast 1.075`, `too-fast 1.15`; clamped 20–500 ms/char.
-- Smart grace is `+1200 ms` in `startBatch` (`runtime.predictedTotal`).
+- Smart mode gives exactly `predictMs(...)` measured from `batchStartAt`; there is no extra grace period.
+- The next batch starts in the same task as `completeBatch`; there is no inter-batch cooldown.
 
-Training script is `TRAINING_TEXT` in `src/lib/text.ts` (10 lines: single short word, single very long word, long-word groups, mixed, hyphenated). `makeTrainingBatches()` splits by line.
+Training script is `TRAINING_TEXT` in `src/lib/text.ts` (two-sentence passage joined from `TRAINING_LINES`). `makeTrainingBatches()` makes one batch per line (11 short phrase batches).
 
 ## Feedback flow
 
@@ -157,7 +163,7 @@ Export shape:
 - `prepare()` returns a `SpeechHandle` with `durationMs`, optional `wordTimings`, `play(onWordIndex)`, `stop()`.
 - `handleCache` keys are `engine|voice|speed|text`, max 4. **Never call `stop()` on evicted handles** — all handles share one audio player.
 - Browser engine uses `speechSynthesis`, filters English voices, uses `onboundary` for highlighting, estimates duration with `estimateSpeechMs`.
-- Prefetch runs 120 ms after playback starts (`runtime.prefetchTimer`), best-effort.
+- Prefetch prepares the next three batches 120 ms after playback starts (`runtime.prefetchTimer`), best-effort. `runtime.pendingPrepares` shares in-flight generates between prefetch and `startBatch`.
 
 ## File parsing
 
@@ -182,7 +188,7 @@ Export shape:
 |---|---|
 | Training script / batch variety | `TRAINING_TEXT` + `makeTrainingBatches` in `src/lib/text.ts` |
 | Training math / prediction | `src/lib/model.ts` (`trainModel`, `predictMs`, `adjustMsPerChar`) |
-| Smart grace / pause between batches | `+1200` in `startBatch`, `700` in `completeBatch`, `120` timer in `startSmartTimer` |
+| Smart timing / start of next batch | `predictedTotal` in `startBatch`, `startSmartTimer` origin, direct `startBatch` in `completeBatch` |
 | When the clock starts | `runtime.batchStartAt` placement in `startBatch` |
 | Feedback options / factors | `CompletePanel` in `src/App.tsx`; factors in `adjustMsPerChar` |
 | Add/rename advance mode | `AdvanceMode` in `types.ts`; `DEFAULT_SETTINGS` in `storage.ts`; `SetupPanel` segmented; `handlePlaybackEnd`/`startBatch`/`next` |
@@ -191,6 +197,8 @@ Export shape:
 | PDF/DOCX/Markdown | `src/lib/files.ts` |
 | Storage schema | `src/lib/storage.ts` (bump key + version); `types.ts` |
 | Theme / minimal styling | `src/index.css` tokens and classes |
+| Pre-training guide copy / slides | `src/components/TrainingGuide.tsx` |
+| Brain menu items | `src/components/BrainMenu.tsx` + handlers in `App.tsx` |
 | Deploy headers | `public/_headers`, `public/_redirects` |
 
 ## Known limitations / risks
@@ -210,7 +218,7 @@ Export shape:
 ```bash
 npm run build
 npx --yes tsx -e "import { trainModel, predictMs } from './src/lib/model.ts'; const r=[{id:'1',createdAt:'x',charCount:10,durationMs:1000},{id:'2',createdAt:'x',charCount:20,durationMs:2000},{id:'3',createdAt:'x',charCount:30,durationMs:3000}]; const m=trainModel(r as any); if(!m||Math.abs(m.msPerChar-100)>1e-9) throw new Error('model'); if(predictMs(m,15)!==1500) throw new Error('predict'); console.log('model ok');"
-npx --yes tsx -e "import { makeTrainingBatches, makeBatches } from './src/lib/text.ts'; const b=makeTrainingBatches(); if(b.length!==10) throw new Error('batches'); const s=makeBatches('One two. Three four! Five?','3','sentence'); if(s.length!==3) throw new Error('sentence'); console.log('text ok');"
+npx --yes tsx -e "import { makeTrainingBatches, TRAINING_TEXT } from './src/lib/text.ts'; const b=makeTrainingBatches(); if(b.length<10) throw new Error('batches'); if(b.map(x=>x.text).join(' ')!==TRAINING_TEXT) throw new Error('text'); const s=makeBatches('One two. Three four! Five?','3','sentence'); if(s.length!==3) throw new Error('sentence'); console.log('text ok', b.length);"
 ```
 
 Then push. Cloudflare Pages should redeploy on `main`.

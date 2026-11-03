@@ -70,9 +70,7 @@ export function SetupPanel({
           <Sparkles size={13} strokeWidth={2.2} />
           Browser dictation practice
         </span>
-        <h1>
-          Read. Write. <em>Keep pace.</em>
-        </h1>
+        <h1>Read. Write. Keep pace.</h1>
         <p>
           Load your notes, hear them in small batches, and write at your own pace. Train your
           personal pace once, then let Smart mode advance automatically. Everything stays on your
@@ -330,8 +328,8 @@ export function SetupPanel({
                 <BookOpen size={18} strokeWidth={2} />
                 Start dictation
               </button>
-              <button type="button" className="link-btn" onClick={onStartTraining}>
-                <Sparkles size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <button type="button" className="btn" onClick={onStartTraining}>
+                <Sparkles size={15} />
                 Start training session
               </button>
             </div>

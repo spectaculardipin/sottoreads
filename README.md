@@ -11,19 +11,21 @@ Implementation map for agents: see [DOCUMENTATION.md](./DOCUMENTATION.md).
 - **Text-to-speech**:
   - **KittenTTS Web** — a local neural voice. The model downloads once and is cached by the browser.
   - **Browser speech synthesis** — instant, offline, very light on low-end devices.
-  - Upcoming batches are prepared in the background.
+  - The next three upcoming batches are prepared in the background, so the next batch starts as soon as the current one ends.
 - **Advancement**:
   - **Manual** — you click Next.
   - **Smart** — unlocked after training; advances using your learned pace.
 - **Training (required once for Smart mode)**:
-  - A built-in training text with deliberately varied batches: very short words, very long words, mixed lengths, and hyphenated words.
+  - A three-slide guide explains what training measures and how to time your Next press before the session begins.
+  - A built-in training passage with varied batch lengths, long hyphenated words, and mixed word lengths.
   - Each training batch records **character count** and **completion time** (from the start of dictation to when you click Next).
   - The app computes your average **milliseconds per character** and saves it locally.
   - Completing the session unlocks Smart mode and selects it automatically.
 - **Feedback adjustment**:
   - At the end of each completed session (when a pace model exists), you can rate the pacing: too slow, a little slow, okay, a little fast, too fast.
   - The saved pace is nudged slightly in the right direction. No per-batch training updates happen silently.
-- **Portable data**: export/import your training batches and pace model as JSON.
+- **Portable data**: export/import your training batches and pace model as JSON, from the setup panel or the header brain menu.
+- **Header menu**: a small brain button opens import, export, reset, and a refresher on how training works.
 - **Privacy**: no accounts, no uploads, no analytics, no microphone. File parsing, TTS, and timing run in the browser.
 - **UI**: minimal blue-and-white theme, responsive, keyboard accessible.
 
@@ -68,7 +70,7 @@ The static site is written to `dist/`.
 - The clock starts **when a batch begins dictating**, not after it finishes.
 - It stops when you press Next (or when Smart mode advances).
 - Training uses this full window, because you write while the batch is being read.
-- Smart mode estimates `characters × ms per character` and adds a short grace period.
+- Smart mode estimates `characters × ms per character` and advances at that exact time, measured from when dictation for the batch began.
 - Outliers (very fast clicks, very long pauses) are ignored when fitting the training data.
 
 ## Training data format

@@ -221,7 +221,7 @@ export function SessionPanel({
           {isSmart && (isYourTurn || isPaused) && predictedMs && (
             <PredictedTimer
               remaining={predictedTotal ?? 0}
-              total={predictedMs + 1200}
+              total={predictedMs}
               predictedMs={predictedMs}
               smartReady={smartReady}
             />
@@ -345,9 +345,9 @@ function PredictedTimer({
           <span
             className="pill"
             style={{
-              background: 'var(--blue-50)',
-              borderColor: 'var(--blue-200)',
-              color: 'var(--blue-700)',
+              background: 'var(--accent-soft)',
+              borderColor: 'var(--accent-border)',
+              color: 'var(--accent)',
               fontSize: 10,
               padding: '2px 6px',
               letterSpacing: '0.02em',

@@ -9,6 +9,8 @@ import {
 import { SetupPanel } from './components/SetupPanel';
 import { SessionPanel } from './components/SessionPanel';
 import { TrainingPanel } from './components/TrainingPanel';
+import { BrainMenu } from './components/BrainMenu';
+import { TrainingGuide } from './components/TrainingGuide';
 import { makeBatches, makeTrainingBatches, splitWords, formatMs } from './lib/text';
 import { adjustMsPerChar, predictMs, trainModel } from './lib/model';
 import { createEngine } from './lib/tts';
@@ -51,6 +53,7 @@ interface Runtime {
   index: number;
   activeHandle: SpeechHandle | null;
   handleCache: Map<string, SpeechHandle>;
+  pendingPrepares: Map<string, Promise<SpeechHandle>>;
   batchStartAt: number;
   startedAt: number;
   predictedMs: number | null;
@@ -79,6 +82,7 @@ function makeRuntime(engine: Runtime['engine'], batches: Batch[], training = fal
     index: 0,
     activeHandle: null,
     handleCache: new Map(),
+    pendingPrepares: new Map(),
     batchStartAt: 0,
     startedAt: 0,
     predictedMs: null,
@@ -134,6 +138,7 @@ export default function App() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState<FeedbackRating | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [sessionStats, setSessionStats] = useState<SessionStats>({
     batches: 0,
     words: 0,
@@ -251,6 +256,7 @@ export default function App() {
     clearRuntimeTimers(runtime);
     await stopAudio(runtime);
     runtime.handleCache.clear();
+    runtime.pendingPrepares.clear();
     await runtime.engine.dispose().catch(() => {});
     if (runtimeRef.current === runtime) runtimeRef.current = null;
   }
@@ -477,25 +483,16 @@ export default function App() {
     setStatus('batch-preparing');
 
     const settingsNow = settingsRef.current;
-    const key = handleKey(batch, runtime.engine.id, settingsNow.voice, settingsNow.speed);
-    let handle = runtime.handleCache.get(key);
-
-    if (!handle) {
-      try {
-        handle = await runtime.engine.prepare(batch.text, {
-          voice: settingsNow.voice,
-          speed: settingsNow.speed,
-        });
-      } catch (error) {
-        if (token !== runtime.token) return;
-        setStatus('error');
-        setErrorMessage(
-          error instanceof Error ? error.message : 'Could not prepare the audio for this batch.',
-        );
-        return;
-      }
-      runtime.handleCache.set(key, handle);
-      pruneCache(runtime);
+    let handle: SpeechHandle;
+    try {
+      handle = await ensureHandle(runtime, batch, settingsNow);
+    } catch (error) {
+      if (token !== runtime.token) return;
+      setStatus('error');
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Could not prepare the audio for this batch.',
+      );
+      return;
     }
 
     if (runtime.cancelled || token !== runtime.token) return;
@@ -503,7 +500,7 @@ export default function App() {
     if (!runtime.training && settingsNow.advanceMode === 'smart' && modelRef.current) {
       const predicted = predictMs(modelRef.current, batch.stats.charCount);
       runtime.predictedMs = predicted;
-      runtime.predictedTotal = predicted ? predicted + 1200 : 0;
+      runtime.predictedTotal = predicted ?? 0;
       setPredictedMs(predicted);
       setPredictedTotal(runtime.predictedTotal);
     }
@@ -514,7 +511,7 @@ export default function App() {
     setStatus('playing');
 
     runtime.prefetchTimer = window.setTimeout(() => {
-      void prefetchNext(index, token);
+      void prefetchUpcoming(index, token);
     }, 120);
 
     try {
@@ -535,31 +532,54 @@ export default function App() {
     handlePlaybackEnd();
   }
 
-  async function prefetchNext(index: number, token: number) {
-    const runtime = runtimeRef.current;
-    if (!runtime || runtime.cancelled || token !== runtime.token) return;
-    const next = runtime.batches[index + 1];
-    if (!next) return;
+  async function ensureHandle(
+    runtime: Runtime,
+    batch: Batch,
+    settingsNow: AppSettings,
+  ): Promise<SpeechHandle> {
+    const key = handleKey(batch, runtime.engine.id, settingsNow.voice, settingsNow.speed);
+    const cached = runtime.handleCache.get(key);
+    if (cached) return cached;
 
-    const settingsNow = settingsRef.current;
-    const key = handleKey(next, runtime.engine.id, settingsNow.voice, settingsNow.speed);
-    if (runtime.handleCache.has(key)) return;
-
-    try {
-      const handle = await runtime.engine.prepare(next.text, {
+    let pending = runtime.pendingPrepares.get(key);
+    if (!pending) {
+      pending = runtime.engine.prepare(batch.text, {
         voice: settingsNow.voice,
         speed: settingsNow.speed,
       });
-      if (runtime.cancelled || token !== runtime.token) return;
+      runtime.pendingPrepares.set(key, pending);
+    }
+
+    try {
+      const handle = await pending;
       runtime.handleCache.set(key, handle);
       pruneCache(runtime);
-    } catch {
-      // Prefetch is best-effort.
+      return handle;
+    } finally {
+      runtime.pendingPrepares.delete(key);
+    }
+  }
+
+  async function prefetchUpcoming(index: number, token: number) {
+    const runtime = runtimeRef.current;
+    if (!runtime || runtime.cancelled || token !== runtime.token) return;
+    const settingsNow = settingsRef.current;
+
+    // Keep the next three batches ready so playback can start without a gap.
+    for (let offset = 1; offset <= 3; offset += 1) {
+      const next = runtime.batches[index + offset];
+      if (!next) return;
+      try {
+        await ensureHandle(runtime, next, settingsNow);
+      } catch {
+        // Prefetch is best-effort; startBatch retries when the batch is reached.
+      }
+      if (runtime.cancelled || token !== runtime.token) return;
     }
   }
 
   function pruneCache(runtime: Runtime) {
-    while (runtime.handleCache.size > 4) {
+    while (runtime.handleCache.size > 5) {
       const firstKey = runtime.handleCache.keys().next().value;
       if (typeof firstKey !== 'string') break;
       runtime.handleCache.delete(firstKey);
@@ -586,7 +606,8 @@ export default function App() {
     if (!runtime || runtime.cancelled) return;
     const token = runtime.token;
     const total = runtime.predictedTotal ?? 0;
-    const started = performance.now();
+    // The estimate covers time since dictation started, not time after playback ends.
+    const started = runtime.batchStartAt;
     setStatus('your-turn');
     setPredictedTotal(total);
 
@@ -650,12 +671,8 @@ export default function App() {
       return;
     }
 
-    setStatus('paused');
-    runtime.timer = window.setTimeout(() => {
-      if (runtimeRef.current === runtime && runtime.token === token) {
-        void startBatch(runtime.index + 1);
-      }
-    }, 700);
+    // Go straight to the next batch; its audio is already prepared.
+    void startBatch(runtime.index + 1);
   }
 
   function next() {
@@ -724,6 +741,7 @@ export default function App() {
     clearRuntimeTimers(runtime);
     await stopAudio(runtime);
     runtime.handleCache.clear();
+    runtime.pendingPrepares.clear();
     await runtime.engine.dispose().catch(() => {});
     if (runtimeRef.current === runtime) runtimeRef.current = null;
 
@@ -946,7 +964,14 @@ export default function App() {
             <span className="brand-name">Dictate</span>
             <span className="brand-tag">read, write, keep pace</span>
           </button>
-          <div className="header-actions" />
+          <div className="header-actions">
+            <BrainMenu
+              onExport={handleExport}
+              onImport={handleImport}
+              onReset={handleReset}
+              onLearn={() => setGuideOpen(true)}
+            />
+          </div>
         </div>
       </header>
 
@@ -964,7 +989,7 @@ export default function App() {
             parseProgress={parseProgress}
             fileName={fileName}
             onFile={handleFile}
-            onStartTraining={startTrainingSession}
+            onStartTraining={() => setGuideOpen(true)}
             onExport={handleExport}
             onImport={handleImport}
             onReset={handleReset}
@@ -1036,6 +1061,17 @@ export default function App() {
           />
         )}
       </main>
+
+      {guideOpen && (
+        <TrainingGuide
+          canStart={!sessionActive}
+          onClose={() => setGuideOpen(false)}
+          onStart={() => {
+            setGuideOpen(false);
+            void startTrainingSession();
+          }}
+        />
+      )}
 
       {toast && (
         <div className={`toast${toast.type === 'error' ? ' error' : ''}`} role="status" aria-live="polite">
@@ -1110,7 +1146,7 @@ function CompletePanel({
       </div>
 
       {showFeedback && (
-        <div style={{ marginTop: 22, padding: 16, border: '1px solid var(--line)', borderRadius: 12, background: '#fff' }}>
+        <div style={{ marginTop: 24, padding: 18, border: '1px solid var(--border-soft)', borderRadius: 14, background: 'var(--surface)' }}>
           <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>
             How was the pacing?
           </p>
