@@ -961,7 +961,7 @@ export default function App() {
             <span className="brand-mark">
               <BookOpen size={17} strokeWidth={2.2} />
             </span>
-            <span className="brand-name">Dictate</span>
+            <span className="brand-name">SottoReads</span>
             <span className="brand-tag">read, write, keep pace</span>
           </button>
           <div className="header-actions">

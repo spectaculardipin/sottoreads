@@ -1,4 +1,4 @@
-# Read & Write — implementation map
+# SottoReads — implementation map
 
 Static, browser-only dictation app. No backend, no microphone, no paid APIs. React 19 + TypeScript + Vite. Deployed to Cloudflare Pages from `dist/`.
 

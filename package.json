@@ -1,8 +1,8 @@
 {
-  "name": "read-and-write",
+  "name": "sottoreads",
   "private": true,
   "version": "1.0.0",
-  "description": "A private, browser-based dictation tool for students. No backend, no paid APIs.",
+  "description": "SottoReads: a private, browser-based dictation tool for students. No backend, no paid APIs.",
   "type": "module",
   "scripts": {
     "dev": "vite",

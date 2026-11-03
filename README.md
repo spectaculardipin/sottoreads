@@ -1,6 +1,12 @@
-# Read & Write — a private, browser-based dictation tool
+# SottoReads — a private, browser-based dictation tool
 
-Read & Write is a free, static, browser-only dictation app for students. It reads text aloud in small batches (like a teacher dictating notes), then gives you time to write. It can advance manually, or — after a short local training session — use **Smart mode** to estimate when you are finished. There is **no backend, no microphone, and no paid AI API**.
+SottoReads is a free, static, browser-only dictation app for students. It reads text aloud in small batches (like a teacher dictating notes), then gives you time to write. It can advance manually, or — after a short local training session — use **Smart mode** to estimate when you are finished. There is **no backend, no microphone, and no paid AI API**.
+
+**Live demo: [sottoreads.pages.dev](https://sottoreads.pages.dev)**
+
+![The SottoReads setup screen, with notes loaded and voice and pacing options ready](./docs/home.png)
+
+![A dictation session in SottoReads, showing one batch at a time with Previous, Replay, and Next](./docs/dictation.png)
 
 Implementation map for agents: see [DOCUMENTATION.md](./DOCUMENTATION.md).
 
@@ -27,7 +33,7 @@ Implementation map for agents: see [DOCUMENTATION.md](./DOCUMENTATION.md).
 - **Portable data**: export/import your training batches and pace model as JSON, from the setup panel or the header brain menu.
 - **Header menu**: a small brain button opens import, export, reset, and a refresher on how training works.
 - **Privacy**: no accounts, no uploads, no analytics, no microphone. File parsing, TTS, and timing run in the browser.
-- **UI**: minimal blue-and-white theme, responsive, keyboard accessible.
+- **UI**: warm, paper-like theme with serif headings and a terracotta accent, responsive, keyboard accessible.
 
 ## Stack
 
