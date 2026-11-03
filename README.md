@@ -2,6 +2,8 @@
 
 Read & Write is a free, static, browser-only dictation app for students. It reads text aloud in small batches (like a teacher dictating notes), then gives you time to write. It can advance manually, or — after a short local training session — use **Smart mode** to estimate when you are finished. There is **no backend, no microphone, and no paid AI API**.
 
+Implementation map for agents: see [DOCUMENTATION.md](./DOCUMENTATION.md).
+
 ## Features
 
 - **Input**: PDF, DOCX, TXT, Markdown, or pasted text.
