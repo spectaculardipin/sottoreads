@@ -9,7 +9,7 @@ const ITEMS = [
   {
     question: 'Do I need an account?',
     answer:
-      'No for the free plan. Pro needs one so your subscription and voice settings can follow you.',
+      'Not for the free plan. Pro needs one so your subscription and voice settings can follow you.',
   },
   {
     question: 'What is Smart mode?',

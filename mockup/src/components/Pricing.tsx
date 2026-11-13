@@ -30,10 +30,10 @@ export function Pricing({ onStartFree, onStartPro }: PricingProps) {
         <div className="section-body">
           <div className="pricing-head">
             <div>
-              <h2 className="section-title">Start free. Add studio voices when you need them.</h2>
+              <h2 className="section-title">Start free. Add studio voices on Pro.</h2>
             </div>
             <p className="section-lede">
-              The free plan is the full practice loop with your browser voice. Pro adds cloud
+              The free plan is the full practice loop with your browser voice. Pro adds studio
               voices, hands-free advance, and support inside the session.
             </p>
           </div>
@@ -59,7 +59,7 @@ export function Pricing({ onStartFree, onStartPro }: PricingProps) {
               <button type="button" className="btn btn-primary" onClick={onStartFree}>
                 Start free
               </button>
-              <p className="plan-note">No card. No upload. No microphone.</p>
+              <p className="plan-note">Runs in your browser.</p>
             </div>
 
             <div className="plan plan-pro">

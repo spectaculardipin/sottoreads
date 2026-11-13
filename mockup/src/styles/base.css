@@ -218,9 +218,9 @@ main[id] {
   padding-top: 8px;
   font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: var(--accent-strong);
 }
 
 .rail::after {
@@ -893,6 +893,23 @@ dialog.sheet::backdrop {
   }
 
   .rail {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 0 14px;
+    color: var(--accent-strong);
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .rail::before {
+    content: '';
+    width: 18px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  .rail::after {
     display: none;
   }
 

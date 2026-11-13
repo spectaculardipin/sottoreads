@@ -2424,3 +2424,15 @@ dialog.practice-sheet {
     min-height: 44px;
   }
 }
+
+/* Round 9: mobile privacy and rail */
+
+@media (max-width: 760px) {
+  .path-arrow {
+    display: none;
+  }
+
+  .path-nodes {
+    gap: 6px;
+  }
+}

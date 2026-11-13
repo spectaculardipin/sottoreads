@@ -12,10 +12,9 @@ export function Privacy() {
             <div className="privacy-copy">
               <h2 className="section-title">Your notes stay in the room.</h2>
               <p className="section-lede">
-                On the free plan, your file is opened and split in your browser, and your device's
-                voice reads it aloud. Sotto Reads does not upload the file. There is no account and
-                no microphone. Pro cloud voices are opt-in, and they send only the batch text you
-                are hearing.
+                On the free plan, your file is opened and split in your browser, and your device
+                voice reads it aloud. There is no account and no microphone. Pro cloud voices are
+                opt-in, and they send only the batch text you are hearing.
               </p>
 
               <div className="privacy-points">
@@ -58,7 +57,7 @@ export function Privacy() {
                     </div>
                     <p className="path-note">
                       The file is parsed and split locally. The voice is your browser's own; some
-                      browser voices use a network. Sotto Reads does not upload the file.
+                      browser voices use a network.
                     </p>
                   </div>
                 </div>

@@ -12,15 +12,15 @@ export function Closing({ onStartFree }: ClosingProps) {
           <span className="cta-kicker">Sotto Reads / free plan</span>
           <h2>Bring your notes. Keep your pace.</h2>
           <p>
-            Free practice needs no account. Pro adds studio voices, hands-free advance, and support
-            inside the session.
+            Free practice runs in your browser. Pro adds studio voices, hands-free advance, and
+            support inside the session.
           </p>
           <div className="cta-actions">
             <button type="button" className="btn btn-lg" onClick={onStartFree}>
               Start free
               <ArrowRight size={17} className="btn-arrow" />
             </button>
-            <span className="cta-note">No account. No upload.</span>
+            <span className="cta-note">Free plan. Browser voice.</span>
           </div>
         </div>
       </div>
