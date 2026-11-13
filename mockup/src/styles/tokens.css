@@ -1,0 +1,104 @@
+:root {
+  --bg: #f5f9fc;
+  --bg-2: #e8f1f8;
+  --surface: #ffffff;
+  --surface-2: #f0f6fb;
+  --ink: #0d2233;
+  --ink-2: #284256;
+  --muted: #5c7386;
+  --line: #d8e5ef;
+  --line-strong: #b6ccdc;
+  --accent: #2e73b5;
+  --accent-strong: #1d5e9b;
+  --accent-soft: #e2f0fc;
+  --accent-ink: #ffffff;
+  --hero-bg: #c9e2f7;
+  --cta-bg: #a9d0ee;
+  --cta-ink: #0d2233;
+  --cta-soft: #2a4a63;
+  --panel: #0e2436;
+  --panel-2: #163247;
+  --panel-3: #1e4058;
+  --panel-ink: #f4f9fd;
+  --panel-muted: #a5bfd2;
+  --panel-line: rgba(244, 249, 253, 0.14);
+  --panel-accent: #8fd0fa;
+  --ok: #4f8f6b;
+  --focus: #1d5e9b;
+  --btn-primary-bg: #0d2233;
+  --btn-primary-ink: #f7fbfe;
+  --btn-primary-hover: #1b3a52;
+  --btn-primary-hover-ink: #ffffff;
+  --logo-bg: #0d2233;
+  --logo-ink: #c9e2f7;
+  --chip-pro-bg: #c9e2f7;
+  --chip-pro-ink: #0d2233;
+  --shadow-paper: 0 18px 48px rgba(13, 34, 51, 0.1);
+  --shadow-panel: 0 28px 70px rgba(13, 34, 51, 0.22);
+
+  --font-display: 'Archivo Variable', 'Arial', sans-serif;
+  --font-ui: 'Archivo Variable', 'Arial', sans-serif;
+  --font-mono: 'Geist Mono', 'Consolas', monospace;
+
+  --max: 1280px;
+  --gutter: 48px;
+  --rail: 72px;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --speed-fast: 150ms;
+  --speed-base: 220ms;
+}
+
+[data-theme='dark'] {
+  --bg: #08121a;
+  --bg-2: #0e1d28;
+  --surface: #102230;
+  --surface-2: #142a3a;
+  --ink: #eaf3fa;
+  --ink-2: #c6d9e7;
+  --muted: #8fa7b8;
+  --line: #1e3748;
+  --line-strong: #315064;
+  --accent: #8ccbf6;
+  --accent-strong: #b5e0fb;
+  --accent-soft: #163449;
+  --accent-ink: #08202f;
+  --hero-bg: #0a1e2b;
+  --cta-bg: #a9d0ee;
+  --cta-ink: #0d2233;
+  --cta-soft: #2a4a63;
+  --panel: #15384f;
+  --panel-2: #1d4761;
+  --panel-3: #265570;
+  --panel-ink: #f2f9fd;
+  --panel-muted: #a8c2d4;
+  --panel-line: rgba(242, 249, 253, 0.18);
+  --panel-accent: #8fd0fa;
+  --ok: #6fb58d;
+  --focus: #8ccbf6;
+  --btn-primary-bg: #eaf3fa;
+  --btn-primary-ink: #0a1b28;
+  --btn-primary-hover: #ffffff;
+  --btn-primary-hover-ink: #0a1b28;
+  --logo-bg: #8ccbf6;
+  --logo-ink: #08121a;
+  --chip-pro-bg: #8ccbf6;
+  --chip-pro-ink: #08121a;
+  --shadow-paper: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --shadow-panel: 0 28px 70px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --gutter: 32px;
+    --rail: 56px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --gutter: 20px;
+    --rail: 0px;
+  }
+}

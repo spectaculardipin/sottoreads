@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-type="software">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#c9e2f7" />
+    <meta name="page-type" content="software" />
+    <meta name="site-kind" content="software" />
+    <meta
+      name="description"
+      content="Sotto Reads is a dictation practice tool for people who write by hand. It reads short batches, waits while you write, and learns your pace."
+    />
+    <meta property="og:title" content="Sotto Reads — the dictation tool that waits for you" />
+    <meta
+      property="og:description"
+      content="Hear a short batch. Write it down. Move at your own pace. Free in your browser, with studio voices on Pro."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Sotto Reads" />
+    <meta property="og:image" content="https://sottouidraft.pages.dev/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sotto Reads — the dictation tool that waits for you" />
+    <meta
+      name="twitter:description"
+      content="Hear a short batch. Write it down. Move at your own pace. Free in your browser, with studio voices on Pro."
+    />
+    <meta name="twitter:image" content="https://sottouidraft.pages.dev/og.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Sotto Reads — the dictation tool that waits for you</title>
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('sotto-theme');
+          var forced = new URLSearchParams(window.location.search).get('theme');
+          var theme =
+            forced === 'light' || forced === 'dark'
+              ? forced
+              : stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+        } catch (error) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
