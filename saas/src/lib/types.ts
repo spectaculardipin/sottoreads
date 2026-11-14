@@ -52,6 +52,7 @@ export interface SessionSettings {
   cloudVoiceId: string;
   advance: AdvanceMode;
   prefetchAhead: number;
+  learnPace: boolean;
 }
 
 export interface PaceModel {

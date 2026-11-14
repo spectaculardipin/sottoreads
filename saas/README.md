@@ -17,8 +17,9 @@ Two routes:
 - Paste text, or upload PDF, DOCX, TXT, or Markdown.
 - Sentence, phrase, or word batches.
 - Browser speech synthesis only. No cloud request, no account, no upload.
+- Three browser voices.
 - Word-by-word highlight from the browser's speech boundary events.
-- Manual or Smart advance. Smart learns your writing pace from completed batches.
+- Manual advance. Smart advance is Pro-only and shows a short paywall in the free room.
 - Everything runs in the browser.
 
 **Pro studio (`/app`)**

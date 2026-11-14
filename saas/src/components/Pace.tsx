@@ -9,17 +9,17 @@ export function Pace() {
       <div className="shell">
         <div className="pace-grid">
           <div className="pace-copy">
-            <h2 className="section-title">It learns your writing pace.</h2>
+            <h2 className="section-title">Smart mode is a Pro feature.</h2>
             <p className="section-lede">
-              Smart mode watches how long you take to press Next and turns it into one number:
-              milliseconds per character. The next batch waits for that pace, not a fixed timer.
+              It learns how long you take to write a batch, then starts the next one for you. You
+              can still press Next first.
             </p>
           </div>
 
-          <div className="pace-panel" aria-label="Sample pace model">
+          <div className="pace-panel" aria-label="Sample Pro pace model">
             <div className="pace-panel-head">
               <span>Pace model</span>
-              <span className="chip">Sample</span>
+              <span className="chip pace-pro-chip">Pro · Sample</span>
             </div>
 
             <div className="pace-panel-body">

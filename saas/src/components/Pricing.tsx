@@ -6,11 +6,11 @@ interface PricingProps {
 }
 
 const FREE = [
-  'Browser voice on every session',
+  '3 browser voices',
   'PDF, DOCX, TXT, and Markdown',
   'Sentence, phrase, and word batches',
   'Word-by-word highlight on the page',
-  'Smart advance that learns your pace',
+  'Manual advance',
 ];
 
 const PRO = [
@@ -18,6 +18,7 @@ const PRO = [
   'Fish Audio S2.1 cloud voice',
   'Four upcoming batches prepared ahead',
   'Warm audio start with no clipped first word',
+  'Smart advance that learns your writing pace',
   'Exact or estimated word-by-word timing',
 ];
 

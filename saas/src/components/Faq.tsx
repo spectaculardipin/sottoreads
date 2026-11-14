@@ -12,12 +12,12 @@ const ITEMS = [
   {
     question: 'What is Smart mode?',
     answer:
-      'Smart mode learns from how long you take to press Next and uses that pace to start the following batch. It always gives you a visible countdown, and you can switch back to Manual at any time.',
+      'Smart mode is a Pro feature. It learns how long you take to write a batch, then starts the next one for you. You can always press Next first.',
   },
   {
     question: 'Which voice do I get for free?',
     answer:
-      "Your browser's built-in voice. It is instant, private, and works offline after the page loads. Pro adds the Fish Audio S2.1 cloud voice.",
+      "Three of your browser's built-in voices. They are instant, private, and work offline after the page loads. Pro adds the Fish Audio S2.1 cloud voice.",
   },
   {
     question: 'What does “four batches prepared ahead” mean?',

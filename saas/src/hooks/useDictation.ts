@@ -32,6 +32,7 @@ export const DEFAULT_SESSION_SETTINGS: SessionSettings = {
   cloudVoiceId: '',
   advance: 'manual',
   prefetchAhead: 4,
+  learnPace: true,
 };
 
 export interface DictationApi {
@@ -281,6 +282,7 @@ export function useDictation(): DictationApi {
   }
 
   function recordWritingIfEligible() {
+    if (!settingsRef.current.learnPace) return;
     const endedAt = playbackEndedAtRef.current;
     if (!endedAt || recordedRef.current.has(indexRef.current)) return;
     const batch = batchesRef.current[indexRef.current];

@@ -58,6 +58,8 @@ export function Hero({ onStartFree }: HeroProps) {
             onPlay={() => play(sampleText)}
             onNext={onStartFree}
             nextLabel="Next"
+            advanceLabel="Manual advance"
+            advanceValue="when ready"
           />
         </div>
       </div>

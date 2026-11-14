@@ -4,16 +4,22 @@ import {
   ArrowRight,
   Check,
   FileUp,
-  Headphones,
   Loader2,
+  Lock,
+  Pause,
+  Play,
   RefreshCw,
+  RotateCcw,
+  SkipBack,
+  SkipForward,
+  Square,
 } from 'lucide-react';
 import { useDictation } from '../hooks/useDictation';
 import { loadBrowserVoices, browserSpeechSupported } from '../lib/browserSpeech';
 import { parseFile } from '../lib/files';
-import { formatClock, makeBatches, SAMPLE_TEXT, splitWords } from '../lib/text';
-import type { AdvanceMode, BatchMode } from '../lib/types';
-import { PlayerPanel } from './session/PlayerPanel';
+import { makeBatches, SAMPLE_TEXT, splitWords } from '../lib/text';
+import type { BatchMode } from '../lib/types';
+import { WordPhrase } from './session/WordPhrase';
 
 interface FreePracticeProps {
   onOpenPro: () => void;
@@ -25,12 +31,23 @@ const MODES: Array<{ id: BatchMode; label: string }> = [
   { id: 'words', label: 'Words' },
 ];
 
+const FREE_VOICE_LIMIT = 3;
+
+function statusText(status: string): string {
+  if (status === 'preparing') return 'Preparing the voice…';
+  if (status === 'playing') return 'Reading aloud.';
+  if (status === 'paused') return 'Paused. Press Play to start this batch again.';
+  if (status === 'your-turn') return 'Your turn. Write it down, then press Next.';
+  if (status === 'complete') return 'Session complete.';
+  if (status === 'error') return 'The voice could not start.';
+  return 'Ready.';
+}
+
 export function FreePractice({ onOpenPro }: FreePracticeProps) {
   const dictation = useDictation();
   const [text, setText] = useState(SAMPLE_TEXT);
   const [mode, setMode] = useState<BatchMode>('sentence');
   const [wordsPerBatch, setWordsPerBatch] = useState(6);
-  const [advance, setAdvance] = useState<AdvanceMode>('manual');
   const [speed, setSpeed] = useState(0.92);
   const [voiceURI, setVoiceURI] = useState('');
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -38,6 +55,7 @@ export function FreePractice({ onOpenPro }: FreePracticeProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [fileLabel, setFileLabel] = useState<string | null>(null);
   const [fileProgress, setFileProgress] = useState<string | null>(null);
+  const [smartUpsell, setSmartUpsell] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -46,16 +64,16 @@ export function FreePractice({ onOpenPro }: FreePracticeProps) {
     void loadBrowserVoices().then((loaded) => {
       if (!active) return;
       setVoices(loaded);
-      setVoiceURI((current) => {
-        if (current) return current;
-        const english = loaded.find((voice) => voice.lang.toLowerCase().startsWith('en'));
-        return (english ?? loaded[0])?.voiceURI ?? '';
-      });
     });
     return () => {
       active = false;
     };
   }, []);
+
+  const freeVoices = useMemo(() => voices.slice(0, FREE_VOICE_LIMIT), [voices]);
+  const selectedVoiceURI = freeVoices.some((voice) => voice.voiceURI === voiceURI)
+    ? voiceURI
+    : (freeVoices[0]?.voiceURI ?? '');
 
   const words = useMemo(() => splitWords(text), [text]);
   const batchCount = useMemo(
@@ -65,41 +83,16 @@ export function FreePractice({ onOpenPro }: FreePracticeProps) {
   const activeBatch = dictation.batches[dictation.index];
   const isActive = dictation.batches.length > 0;
   const sessionStatus = dictation.status;
-  const revealAll = sessionStatus === 'your-turn' || sessionStatus === 'complete';
+  const preparing = sessionStatus === 'preparing';
   const playing = sessionStatus === 'playing';
-  const progress = revealAll
-    ? 1
-    : activeBatch && dictation.activeWord >= 0
-      ? Math.min(1, (dictation.activeWord + 0.65) / activeBatch.words.length)
-      : 0;
-
-  const statusLabel =
-    sessionStatus === 'preparing'
-      ? 'Preparing voice'
-      : sessionStatus === 'playing'
-        ? 'Reading aloud'
-        : sessionStatus === 'paused'
-          ? 'Paused'
-          : sessionStatus === 'your-turn'
-            ? 'Your turn'
-            : sessionStatus === 'complete'
-              ? 'Session complete'
-              : sessionStatus === 'error'
-                ? 'Voice error'
-                : 'Ready';
-
-  const advanceLabel =
-    sessionStatus === 'your-turn'
-      ? dictation.settings.advance === 'smart' && dictation.remainingMs !== null
-        ? 'Smart advance in'
-        : 'Manual advance'
-      : undefined;
-  const advanceValue =
-    sessionStatus === 'your-turn'
-      ? dictation.settings.advance === 'smart' && dictation.remainingMs !== null
-        ? formatClock(dictation.remainingMs)
-        : 'when ready'
-      : undefined;
+  const paused = sessionStatus === 'paused';
+  const revealAll = sessionStatus === 'your-turn' || sessionStatus === 'complete';
+  const completed = sessionStatus === 'complete';
+  const lastBatch = dictation.index >= dictation.batches.length - 1;
+  const totalWords = dictation.batches.reduce((sum, batch) => sum + batch.words.length, 0);
+  const progress = isActive
+    ? Math.min(100, ((dictation.index + 1) / Math.max(1, dictation.batches.length)) * 100)
+    : 0;
 
   async function handleFile(file: File | null) {
     if (!file) return;
@@ -133,237 +126,322 @@ export function FreePractice({ onOpenPro }: FreePracticeProps) {
       return;
     }
     setFormError(null);
+    setSmartUpsell(false);
     setEditing(false);
     void dictation.start(text, {
       voice: 'browser',
       speed,
       batchMode: mode,
       wordsPerBatch,
-      browserVoiceURI: voiceURI,
+      browserVoiceURI: selectedVoiceURI,
       cloudVoiceId: '',
-      advance,
+      advance: 'manual',
       prefetchAhead: 4,
+      learnPace: false,
     });
   }
 
   function editText() {
     dictation.reset();
     setEditing(true);
+    setSmartUpsell(false);
+  }
+
+  function clearText() {
+    setText('');
+    setFileLabel(null);
+    setFormError(null);
+  }
+
+  function adjustWords(delta: number) {
+    setWordsPerBatch((current) => Math.max(2, Math.min(12, current + delta)));
   }
 
   return (
     <section className="section free-section" id="free">
       <div className="shell">
         <div className="free-head">
-          <span className="chip chip-free">
-            <span className="chip-dot" />
-            Free · Browser voice
-          </span>
-          <h2 className="section-title">The free room. Start with one paste.</h2>
-          <p className="section-lede">
-            No account, no upload, no card. Paste your notes and your browser reads one short
-            batch, then waits while you write it down.
-          </p>
+          <div>
+            <span className="chip chip-free">
+              <span className="chip-dot" />
+              Free · Browser voice
+            </span>
+            <h2 className="free-title">Free dictation</h2>
+            <p className="free-sub">
+              Paste text, choose a voice, and start. No account needed.
+            </p>
+          </div>
+          <div className="free-head-meta">
+            <span>{freeVoices.length > 0 ? `${freeVoices.length} browser voices` : 'Browser voice'}</span>
+            <span>Manual advance</span>
+          </div>
         </div>
 
-        <div className="free-room">
+        <div className="free-app-shell">
           {editing || !isActive ? (
-            <div className="free-setup">
-              <div className="free-input-col">
-                <div className="free-field-head">
-                  <label htmlFor="free-text">Your text</label>
-                  <span>
+            <div className="free-setup-layout">
+              <section className="free-panel free-text-panel">
+                <div className="free-panel-head">
+                  <div>
+                    <h3>Your text</h3>
+                    <span>Paste notes or upload a document.</span>
+                  </div>
+                  <span className="free-count">
                     {words.length} words · {batchCount} {batchCount === 1 ? 'batch' : 'batches'}
                   </span>
                 </div>
+
                 <textarea
                   id="free-text"
-                  className="free-textarea"
+                  className="free-input-area"
                   value={text}
                   onChange={(event) => {
                     setText(event.target.value);
                     setFileLabel(null);
                   }}
-                  placeholder="Paste a paragraph, a lecture note, or a page from a book…"
+                  placeholder="Paste your notes here. Sotto reads one short batch at a time."
                   spellCheck={false}
+                  aria-label="Text for free dictation"
                 />
-                <div className="free-input-foot">
-                  <div className="free-file-actions">
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept=".pdf,.docx,.txt,.md,text/plain,application/pdf"
-                      className="sr-only"
-                      id="free-file"
-                      onChange={(event) => void handleFile(event.target.files?.[0] ?? null)}
-                    />
-                    <button
-                      type="button"
-                      className="file-button"
-                      onClick={() => fileRef.current?.click()}
-                    >
-                      <FileUp size={15} />
-                      Upload a file
-                    </button>
-                    <button
-                      type="button"
-                      className="text-link"
-                      onClick={() => {
-                        setText(SAMPLE_TEXT);
-                        setFileLabel(null);
-                        setFormError(null);
-                      }}
-                    >
-                      Use the sample
-                    </button>
-                  </div>
-                  <span className="free-privacy">
+
+                <div className="free-input-tools">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".pdf,.docx,.txt,.md,text/plain,application/pdf"
+                    className="sr-only"
+                    id="free-file"
+                    onChange={(event) => void handleFile(event.target.files?.[0] ?? null)}
+                  />
+                  <button
+                    type="button"
+                    className="file-button"
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    <FileUp size={14} />
+                    Upload
+                  </button>
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => {
+                      setText(SAMPLE_TEXT);
+                      setFileLabel(null);
+                      setFormError(null);
+                    }}
+                  >
+                    Sample
+                  </button>
+                  <button type="button" className="text-link" onClick={clearText}>
+                    Clear
+                  </button>
+                  <span className="free-file-note">
                     {fileProgress ? (
                       <>
-                        <Loader2 size={12} className="spin" />
+                        <Loader2 size={11} className="spin" />
                         {fileProgress}
                       </>
                     ) : fileLabel ? (
                       <>
-                        <Check size={12} />
+                        <Check size={11} />
                         {fileLabel}
                       </>
                     ) : (
-                      'Runs in your browser'
+                      'Stays in your browser'
                     )}
                   </span>
                 </div>
+
                 {formError ? (
                   <p className="form-error" role="alert">
                     <AlertCircle size={14} />
                     {formError}
                   </p>
                 ) : null}
-              </div>
+              </section>
 
-              <aside className="free-controls">
-                <div className="control-block">
-                  <span className="control-label">Batch style</span>
-                  <div className="segmented" role="group" aria-label="Batch style">
-                    {MODES.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        aria-pressed={mode === item.id}
-                        onClick={() => setMode(item.id)}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                  {mode === 'words' ? (
-                    <label className="control-inline">
-                      <span>Words per batch</span>
-                      <select
-                        value={wordsPerBatch}
-                        onChange={(event) => setWordsPerBatch(Number(event.target.value))}
-                      >
-                        {[4, 6, 8, 10].map((count) => (
-                          <option key={count} value={count}>
-                            {count}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : null}
-                </div>
-
-                <div className="control-block">
-                  <span className="control-label">Advance</span>
-                  <div className="segmented" role="group" aria-label="Advance mode">
-                    <button
-                      type="button"
-                      aria-pressed={advance === 'manual'}
-                      onClick={() => setAdvance('manual')}
-                    >
-                      Manual
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={advance === 'smart'}
-                      onClick={() => setAdvance('smart')}
-                    >
-                      Smart
-                    </button>
-                  </div>
-                  <p className="control-note">
-                    {advance === 'smart'
-                      ? 'Smart uses your writing pace and shows a countdown.'
-                      : 'You press Next when the line is written.'}
-                  </p>
-                </div>
-
-                <div className="control-block">
-                  <label className="control-inline" htmlFor="free-speed">
-                    <span>Speed</span>
-                    <strong>{speed.toFixed(2)}×</strong>
-                  </label>
-                  <input
-                    id="free-speed"
-                    type="range"
-                    min={0.7}
-                    max={1.15}
-                    step={0.02}
-                    value={speed}
-                    onChange={(event) => setSpeed(Number(event.target.value))}
-                  />
-                </div>
-
-                <div className="control-block">
-                  <label className="control-label" htmlFor="free-voice">
-                    Browser voice
+              <aside className="free-panel free-config">
+                <div className="free-field">
+                  <label className="free-field-label" htmlFor="free-mode">
+                    Batch by
                   </label>
                   <select
-                    id="free-voice"
+                    id="free-mode"
                     className="select"
-                    value={voiceURI}
-                    onChange={(event) => setVoiceURI(event.target.value)}
+                    value={mode}
+                    onChange={(event) => setMode(event.target.value as BatchMode)}
                   >
-                    {voices.length === 0 ? <option value="">System default</option> : null}
-                    {voices.map((voice) => (
-                      <option key={voice.voiceURI} value={voice.voiceURI}>
-                        {voice.name} · {voice.lang}
+                    {MODES.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <button type="button" className="btn btn-primary btn-lg free-start" onClick={startSession}>
-                  Start free session
-                  <ArrowRight size={17} className="btn-arrow" />
+                {mode === 'words' ? (
+                  <div className="free-field">
+                    <label className="free-field-label" htmlFor="free-batch-size">
+                      Words per batch
+                    </label>
+                    <div className="free-stepper">
+                      <button
+                        type="button"
+                        onClick={() => adjustWords(-1)}
+                        aria-label="Decrease words per batch"
+                      >
+                        −
+                      </button>
+                      <input
+                        id="free-batch-size"
+                        type="number"
+                        min={2}
+                        max={12}
+                        value={wordsPerBatch}
+                        onChange={(event) => {
+                          const next = Number(event.target.value);
+                          if (Number.isFinite(next)) {
+                            setWordsPerBatch(Math.max(2, Math.min(12, next)));
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => adjustWords(1)}
+                        aria-label="Increase words per batch"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="free-field">
+                  <label className="free-field-label" htmlFor="free-voice">
+                    Voice
+                  </label>
+                  <select
+                    id="free-voice"
+                    className="select"
+                    value={selectedVoiceURI}
+                    onChange={(event) => setVoiceURI(event.target.value)}
+                  >
+                    {freeVoices.length === 0 ? <option value="">System default</option> : null}
+                    {freeVoices.map((voice) => (
+                      <option key={voice.voiceURI} value={voice.voiceURI}>
+                        {voice.name} · {voice.lang}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="free-field-note">
+                    {freeVoices.length > 0
+                      ? `${freeVoices.length} browser voices available on this device.`
+                      : 'Uses your system default voice.'}
+                  </span>
+                </div>
+
+                <div className="free-field">
+                  <label className="free-field-label" htmlFor="free-speed">
+                    Speaking speed
+                    <strong>{speed.toFixed(2)}×</strong>
+                  </label>
+                  <input
+                    id="free-speed"
+                    type="range"
+                    min={0.5}
+                    max={1.5}
+                    step={0.05}
+                    value={speed}
+                    onChange={(event) => setSpeed(Number(event.target.value))}
+                  />
+                  <span className="free-field-note">Slower is usually easier for dictation.</span>
+                </div>
+
+                <div className="free-field">
+                  <span className="free-field-label">Advance</span>
+                  <div className="segmented free-advance" role="group" aria-label="Advance mode">
+                    <button type="button" aria-pressed={true} onClick={() => setSmartUpsell(false)}>
+                      Manual
+                    </button>
+                    <button
+                      type="button"
+                      className="smart-lock"
+                      aria-pressed={false}
+                      onClick={() => setSmartUpsell(true)}
+                      title="Smart mode is a Pro feature"
+                    >
+                      <Lock size={11} />
+                      Smart
+                      <span className="pro-tag">Pro</span>
+                    </button>
+                  </div>
+                  <span className="free-field-note">
+                    Manual: press Next when you finish writing. Smart is Pro.
+                  </span>
+                </div>
+
+                {smartUpsell ? (
+                  <div className="smart-paywall" role="note">
+                    <div className="smart-paywall-head">
+                      <Lock size={14} />
+                      <strong>Smart mode is a Pro feature.</strong>
+                    </div>
+                    <p>
+                      It learns how long you take to write a batch, then starts the next one for
+                      you.
+                    </p>
+                    <div className="smart-paywall-actions">
+                      <button type="button" className="btn btn-primary btn-sm" onClick={onOpenPro}>
+                        Open Pro
+                        <ArrowRight size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => setSmartUpsell(false)}
+                      >
+                        Keep manual
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-lg free-start-btn"
+                  onClick={startSession}
+                >
+                  Start dictation
                 </button>
-                <p className="free-fine">
-                  Uses only your browser's built-in voice. Nothing leaves this device.
+                <p className="free-privacy-line">
+                  Uses your browser voice. Nothing is uploaded.
                 </p>
               </aside>
             </div>
           ) : (
-            <div className="free-session">
-              <div className="free-session-head">
-                <div className="free-session-meta">
-                  <span className="chip chip-free">
-                    <span className="chip-dot" />
-                    Free · Browser voice
-                  </span>
-                  <span className="free-session-count">
-                    {dictation.batches.length} batches · {dictation.batches.reduce((sum, batch) => sum + batch.words.length, 0)} words
-                  </span>
-                </div>
+            <div className="free-session-shell">
+              <div className="free-session-header">
+                <span className="free-batch-meta">
+                  Batch <strong>{dictation.index + 1}</strong> of {dictation.batches.length}
+                </span>
                 <div className="free-session-actions">
-                  <span className="free-clock">{formatClock(dictation.elapsedMs)}</span>
+                  <span className="free-session-voice">Browser voice · Manual</span>
                   <button type="button" className="text-link" onClick={editText}>
-                    Edit text
-                  </button>
-                  <button type="button" className="text-link" onClick={onOpenPro}>
-                    <Headphones size={13} />
-                    Pro studio
+                    <Square size={11} />
+                    End session
                   </button>
                 </div>
+              </div>
+
+              <div
+                className="free-progress"
+                role="progressbar"
+                aria-valuemin={1}
+                aria-valuemax={dictation.batches.length}
+                aria-valuenow={dictation.index + 1}
+                aria-label="Session progress"
+              >
+                <span className="free-progress-fill" style={{ width: `${progress}%` }} />
               </div>
 
               {dictation.error ? (
@@ -376,53 +454,17 @@ export function FreePractice({ onOpenPro }: FreePracticeProps) {
                 </div>
               ) : null}
 
-              {activeBatch ? (
-                <PlayerPanel
-                  label="Free practice"
-                  badge="Browser voice"
-                  words={activeBatch.words}
-                  activeWord={dictation.activeWord}
-                  playing={playing}
-                  revealAll={revealAll}
-                  statusLabel={statusLabel}
-                  batchIndex={dictation.index}
-                  batchCount={dictation.batches.length}
-                  progress={progress}
-                  advanceLabel={advanceLabel}
-                  advanceValue={advanceValue}
-                  nextLabel={dictation.index === dictation.batches.length - 1 ? 'Finish' : 'Next'}
-                  playDisabled={sessionStatus === 'preparing' || sessionStatus === 'complete'}
-                  nextDisabled={sessionStatus === 'preparing' || sessionStatus === 'complete'}
-                  onTogglePlay={dictation.play}
-                  onNext={dictation.next}
-                  onPrevious={dictation.index > 0 ? dictation.previous : undefined}
-                  onReplay={dictation.replay}
-                  variant="free"
-                />
-              ) : null}
-
-              {sessionStatus === 'complete' ? (
-                <div className="session-complete">
-                  <span className="complete-mark">
+              {completed ? (
+                <div className="free-complete">
+                  <span className="free-complete-mark">
                     <Check size={22} />
                   </span>
-                  <div>
-                    <h3>Session complete.</h3>
-                    <p>
-                      {dictation.batches.length} batches ·{' '}
-                      {dictation.batches.reduce((sum, batch) => sum + batch.words.length, 0)} words
-                      · {formatClock(dictation.elapsedMs)}. Write the last line, then start again
-                      whenever you want.
-                    </p>
-                  </div>
-                  <div className="session-complete-actions">
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => {
-                        void dictation.start(text, dictation.settings);
-                      }}
-                    >
+                  <h3>Session complete.</h3>
+                  <p>
+                    {dictation.batches.length} batches · {totalWords} words.
+                  </p>
+                  <div className="free-complete-actions">
+                    <button type="button" className="btn btn-primary" onClick={startSession}>
                       <RefreshCw size={14} />
                       Practice again
                     </button>
@@ -431,12 +473,62 @@ export function FreePractice({ onOpenPro }: FreePracticeProps) {
                     </button>
                   </div>
                 </div>
-              ) : null}
+              ) : activeBatch ? (
+                <>
+                  <div className="free-batch-card">
+                    <WordPhrase
+                      words={activeBatch.words}
+                      activeWord={dictation.activeWord}
+                      revealAll={revealAll}
+                      className="free-words"
+                    />
+                    <p className="free-status" aria-live="polite">
+                      {statusText(sessionStatus)}
+                    </p>
+                  </div>
 
-              <p className="free-session-note">
-                Free practice reads with your browser's own voice and never sends your text to a
-                server. Pro adds Fish Audio cloud voices and prepares four batches ahead.
-              </p>
+                  <div className="free-session-controls">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={dictation.previous}
+                      disabled={dictation.index === 0 || preparing}
+                    >
+                      <SkipBack size={15} />
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={dictation.replay}
+                      disabled={preparing}
+                    >
+                      <RotateCcw size={15} />
+                      Replay
+                    </button>
+                    {playing || paused ? (
+                      <button type="button" className="btn" onClick={dictation.play}>
+                        {playing ? <Pause size={15} /> : <Play size={15} />}
+                        {playing ? 'Pause' : 'Play'}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={dictation.next}
+                      disabled={preparing}
+                    >
+                      {lastBatch ? 'Finish' : 'Next'}
+                      <SkipForward size={15} />
+                    </button>
+                  </div>
+
+                  <div className="free-session-foot">
+                    <span>Manual advance</span>
+                    <span>Browser voice</span>
+                  </div>
+                </>
+              ) : null}
             </div>
           )}
         </div>

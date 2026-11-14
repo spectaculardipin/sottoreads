@@ -56,7 +56,7 @@ export function Pro() {
               </li>
               <li>
                 <Check size={14} />
-                Smart advance learns how long you need to write
+                Smart advance learns how long you take to write
               </li>
             </ul>
             <a className="btn btn-pro-cta" href="/app">

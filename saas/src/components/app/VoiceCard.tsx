@@ -195,8 +195,8 @@ export function VoiceCard({
         </div>
         <p className="app-field-note">
           {advance === 'smart'
-            ? 'Smart uses your learned writing pace and shows a countdown.'
-            : 'You press Next when the line is written.'}
+            ? 'Smart learns how long you take to write and starts the next batch for you.'
+            : 'You press Next when you finish writing.'}
         </p>
       </div>
 

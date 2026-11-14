@@ -154,6 +154,7 @@ export function ProAppPage() {
       cloudVoiceId,
       advance,
       prefetchAhead: PREFETCH_AHEAD,
+      learnPace: true,
     });
   }
 
