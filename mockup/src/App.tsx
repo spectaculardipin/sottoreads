@@ -55,7 +55,7 @@ export default function App() {
         <Closing onStartFree={startFree} />
       </main>
 
-      <Footer theme={theme} onToggleTheme={toggle} onSignIn={signIn} onStartFree={startFree} />
+      <Footer onSignIn={signIn} onStartFree={startFree} />
 
       <AuthDialog open={authOpen} mode={authMode} onClose={() => setAuthOpen(false)} />
       <PracticeDialog open={practiceOpen} onClose={() => setPracticeOpen(false)} />

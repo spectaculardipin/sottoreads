@@ -13,7 +13,7 @@ export function Pro() {
   const [handsFree, setHandsFree] = useState(true);
 
   return (
-    <section className="section" id="pro">
+    <section className="section pro-section" id="pro">
       <div className="shell section-grid">
         <div className="rail" aria-hidden="true">
           05

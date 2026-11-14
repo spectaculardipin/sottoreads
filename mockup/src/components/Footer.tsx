@@ -1,15 +1,11 @@
-import type { Theme } from '../hooks/useTheme';
 import { Logo } from './Logo';
-import { ThemeToggle } from './ThemeToggle';
 
 interface FooterProps {
-  theme: Theme;
-  onToggleTheme: () => void;
   onSignIn: () => void;
   onStartFree: () => void;
 }
 
-export function Footer({ theme, onToggleTheme, onSignIn, onStartFree }: FooterProps) {
+export function Footer({ onSignIn, onStartFree }: FooterProps) {
   return (
     <footer className="footer">
       <div className="shell">
@@ -110,7 +106,6 @@ export function Footer({ theme, onToggleTheme, onSignIn, onStartFree }: FooterPr
           <span>© 2026 Sotto Reads. The free app is open source.</span>
           <div className="footer-bottom-right">
             <span>Made for handwritten notes.</span>
-            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           </div>
         </div>
       </div>
