@@ -386,10 +386,7 @@ export function FreePractice({ onOpenPro }: FreePracticeProps) {
                       <Lock size={14} />
                       <strong>Smart mode is a Pro feature.</strong>
                     </div>
-                    <p>
-                      It learns how long you take to write a batch, then starts the next one for
-                      you.
-                    </p>
+                    <p>It learns your writing speed and starts the next batch for you.</p>
                     <div className="smart-paywall-actions">
                       <button type="button" className="btn btn-primary btn-sm" onClick={onOpenPro}>
                         Open Pro

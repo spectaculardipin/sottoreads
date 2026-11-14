@@ -18,7 +18,7 @@ const PRO = [
   'Fish Audio S2.1 cloud voice',
   'Four upcoming batches prepared ahead',
   'Warm audio start with no clipped first word',
-  'Smart advance that learns your writing pace',
+  'Smart advance that learns your writing speed',
   'Exact or estimated word-by-word timing',
 ];
 

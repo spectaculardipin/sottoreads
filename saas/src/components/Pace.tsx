@@ -11,8 +11,8 @@ export function Pace() {
           <div className="pace-copy">
             <h2 className="section-title">Smart mode is a Pro feature.</h2>
             <p className="section-lede">
-              It learns how long you take to write a batch, then starts the next one for you. You
-              can still press Next first.
+              It learns your writing speed and starts the next batch for you. You can still press
+              Next first.
             </p>
           </div>
 

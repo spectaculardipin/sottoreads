@@ -12,7 +12,7 @@ const ITEMS = [
   {
     question: 'What is Smart mode?',
     answer:
-      'Smart mode is a Pro feature. It learns how long you take to write a batch, then starts the next one for you. You can always press Next first.',
+      'Smart mode is a Pro feature. It learns your writing speed and starts the next batch for you. You can always press Next first.',
   },
   {
     question: 'Which voice do I get for free?',
