@@ -8,7 +8,8 @@ Bar: 90/100. Reference: Fish Audio theme, 85% match, Sotto's own product story.
 | 2 | 77 | Composition and surfaces | Continuous warm ground, wider stage, 72/44 type scale, cream close, Pro split, section rules removed, dark Pro card, sentence-case labels | Real gains; stage still a card in a ring |
 | 3 | 85 | Painted stage and second chromatic beat | Stage becomes a layered pastel canvas with grain and a panel running off the bottom edge; pace becomes a full-bleed pastel split; loop becomes one divided strip; pricing lists balanced; remaining caps removed; dark stage graphite | Strong 85, still not 90 |
 | 4 | 88 | Final surface and variety pass | Layered stage with brush texture; flat stage, no float; Notes centered; Pro full-bleed dark band; dark rose/indigo palette; mobile meter/pill clipping fixed; pricing separation; footer toggle removed | Structural fixes landed; stage still read as CSS |
-| 5 | pending | Real canvas and final alignment | Generated oil/gouache canvas for light and dark (`stage-light.jpg`, `stage-dark.jpg`), write line pinned at rest, mobile pricing/CTA centered, dark Pro band lifted | Awaiting final score |
+| 5 | **90** | Real canvas and final alignment | Generated oil/gouache canvas for light and dark (`stage-light.jpg`, `stage-dark.jpg`), write line pinned at rest, mobile pricing/CTA centered, dark Pro band lifted | **Hits the bar** |
+| 6 | 90 (optional) | Critic caveat | Closed the stage bottom with 40px of paint and kept the mobile advance pill on one line | Improvement applied after the score; not re-scored |
 
 ## What has been resolved
 
