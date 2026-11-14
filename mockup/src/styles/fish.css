@@ -2889,3 +2889,32 @@ button.advance-pill:hover {
   opacity: 0.05;
   mix-blend-mode: screen;
 }
+
+/* Close the stage mat and keep the mobile pill single-line */
+
+.stage {
+  min-height: 440px;
+  padding-bottom: 40px;
+}
+
+@media (max-width: 980px) {
+  .stage {
+    min-height: 400px;
+    padding-bottom: 28px;
+  }
+}
+
+@media (max-width: 640px) {
+  .stage {
+    min-height: 380px;
+    padding-bottom: 24px;
+  }
+
+  .sample-panel .advance-pill {
+    gap: 8px;
+  }
+
+  .sample-panel .advance-copy {
+    white-space: nowrap;
+  }
+}
