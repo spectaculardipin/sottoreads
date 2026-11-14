@@ -2824,3 +2824,16 @@ button.advance-pill:hover {
     border-radius: 14px 14px 0 0;
   }
 }
+
+/* Keep the writing line visible at rest; typing is a hover moment */
+
+.write-text {
+  width: auto;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .step:hover .write-text {
+    animation: type-line 2.4s steps(28) 1;
+  }
+}
