@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-type="software">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f3ef" />
+    <meta name="page-type" content="software" />
+    <meta name="site-kind" content="software" />
+    <meta
+      name="description"
+      content="Dictation practice that goes quiet while you write. Try the free room in your browser, or open the Pro studio for Fish Audio cloud voices and four prepared batches ahead."
+    />
+    <meta property="og:title" content="Sotto Reads — hear one batch, then write it down" />
+    <meta
+      property="og:description"
+      content="A dictation tool for handwritten notes. Free in your browser, with Fish Audio cloud voices and a prepared queue on Pro."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Sotto Reads" />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sotto Reads — hear one batch, then write it down" />
+    <meta
+      name="twitter:description"
+      content="Free browser dictation practice, plus Fish Audio cloud voices and a prepared queue in the Pro studio."
+    />
+    <meta name="twitter:image" content="/og.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Sotto Reads — dictation practice that goes quiet while you write</title>
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('sotto-theme');
+          var forced = new URLSearchParams(window.location.search).get('theme');
+          var theme =
+            forced === 'light' || forced === 'dark'
+              ? forced
+              : stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+        } catch (error) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
