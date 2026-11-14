@@ -18,10 +18,13 @@ export function Footer({ theme, onToggleTheme, onSignIn, onStartFree }: FooterPr
             <Logo />
             <p>
               A dictation tool for people who write by hand. Free practice runs in your browser.
-              Pro adds cloud voices.
+              Pro adds studio voices.
+            </p>
+            <p className="footer-privacy">
+              Free plan: your file stays in your browser. No account, no upload. Pro needs an
+              account.
             </p>
             <span className="chip" style={{ marginTop: 18 }}>
-              <span className="chip-dot" />
               Open source
             </span>
           </div>
@@ -33,10 +36,7 @@ export function Footer({ theme, onToggleTheme, onSignIn, onStartFree }: FooterPr
                 <a href="#how">How it works</a>
               </li>
               <li>
-                <a href="#pace">Smart pace</a>
-              </li>
-              <li>
-                <a href="#privacy">Privacy</a>
+                <a href="#pace">Pace</a>
               </li>
               <li>
                 <a href="#pricing">Pricing</a>
@@ -57,7 +57,7 @@ export function Footer({ theme, onToggleTheme, onSignIn, onStartFree }: FooterPr
               </li>
               <li>
                 <button type="button" className="footer-link" onClick={onSignIn}>
-                  Sign in to Pro
+                  Log in to Pro
                 </button>
               </li>
               <li>
@@ -76,7 +76,13 @@ export function Footer({ theme, onToggleTheme, onSignIn, onStartFree }: FooterPr
             <h3>More</h3>
             <ul>
               <li>
-                <a href="#privacy">Privacy</a>
+                <a
+                  href="https://github.com/spectaculardipin/sottoreads/commits/main"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Changelog
+                </a>
               </li>
               <li>
                 <a
@@ -103,7 +109,7 @@ export function Footer({ theme, onToggleTheme, onSignIn, onStartFree }: FooterPr
         <div className="footer-bottom">
           <span>© 2026 Sotto Reads. The free app is open source.</span>
           <div className="footer-bottom-right">
-            <span>Built for quiet study.</span>
+            <span>Made for handwritten notes.</span>
             <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           </div>
         </div>

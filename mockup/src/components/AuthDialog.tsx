@@ -25,7 +25,7 @@ export function AuthDialog({ open, mode, onClose }: AuthDialogProps) {
     }
   }, [open]);
 
-  const title = mode === 'pro' ? 'Start Pro' : 'Sign in';
+  const title = mode === 'pro' ? 'Start Pro' : 'Log in';
   const sub =
     mode === 'pro'
       ? 'Pro is $8 per month. Free practice does not need an account.'

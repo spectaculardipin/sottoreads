@@ -1,106 +1,58 @@
-import { ArrowUpRight } from 'lucide-react';
-
 const ITEMS = [
   {
     question: 'Does Sotto Reads upload my notes?',
     answer:
-      'Sotto Reads does not upload the file. The free plan opens and splits it in your browser, then your device voice reads it. Some browser voices use a network; check your browser settings. On Pro, only the text of each batch is sent to the cloud voice you choose.',
+      'No. The free plan opens and splits the file in your browser. On Pro, only the text of the batch you are hearing goes to the voice provider.',
   },
   {
     question: 'Do I need an account?',
-    answer:
-      'Not for the free plan. Pro needs one so your subscription and voice settings can follow you.',
+    answer: 'Not for the free plan. Pro needs one so your voice settings and subscription can follow you.',
   },
   {
     question: 'What is Smart mode?',
     answer:
-      'A short training session records how long each batch takes. Sotto Reads turns that into milliseconds per character and uses it to advance. You can always press Next sooner or ask for more time.',
+      'A short training session measures your writing speed. Smart mode uses it to advance. You can always press Next first.',
   },
   {
     question: 'Which voice do I get for free?',
     answer:
-      "Your browser's built-in English voice. It is instant and works offline after the page loads. Pro adds Fish Audio and ElevenLabs.",
+      "Your browser's built-in voice. It is instant and works offline after the page loads. Pro adds Fish Audio and ElevenLabs.",
   },
   {
     question: 'Can I use it offline?',
     answer:
-      'The free plan works offline after the page loads, as long as your device voice is available and does not need a network. Some browser voices do. Pro cloud voices need a connection.',
+      'The free plan works offline after the page loads, as long as your device voice does not need a network. Pro voices need a connection.',
   },
   {
     question: 'Can I move my pace to another browser?',
     answer:
-      'Yes. Export your pace data as JSON and import it on the other browser. It contains your training batches and the pace model.',
-  },
-  {
-    question: 'What file types can I load?',
-    answer: 'PDF, DOCX, TXT, Markdown, or pasted text. The file limit is 40 MB.',
+      'Yes. Export it as JSON and import it on the other browser. It contains your training batches and the pace model.',
   },
 ];
 
-function FaqItem({ question, answer }: { question: string; answer: string }) {
-  return (
-    <details className="faq-item">
-      <summary>
-        <span className="faq-question">{question}</span>
-        <span className="faq-icon" aria-hidden="true" />
-      </summary>
-      <div className="faq-answer">{answer}</div>
-    </details>
-  );
-}
-
 export function Faq() {
-  const first = ITEMS.slice(0, 4);
-  const second = ITEMS.slice(4);
-
   return (
-    <section className="section" id="faq">
-      <div className="shell section-grid">
-        <div className="rail" aria-hidden="true">
-          07
+    <section className="section faq-section" id="faq">
+      <div className="shell">
+        <div className="section-head-center">
+          <h2 className="section-title">Before you start.</h2>
+          <p className="section-lede">
+            If something is still unclear, open an issue on GitHub.
+          </p>
         </div>
-        <div className="section-body">
-          <div className="faq-head">
-            <div>
-              <h2 className="section-title">
-                The things people ask
-                <br />
-                before starting.
-              </h2>
-            </div>
-            <div>
-              <p className="section-lede">
-                If something is still unclear, the repository is the best place to ask.
-              </p>
-              <p style={{ marginTop: 16 }}>
-                <a
-                  className="link"
-                  href="https://github.com/spectaculardipin/sottoreads/issues"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open an issue
-                  <ArrowUpRight size={14} style={{ display: 'inline', marginLeft: 4 }} />
-                </a>
-              </p>
-            </div>
-          </div>
 
-          <div className="faq-columns">
-            <div className="faq-list">
-              {first.map((item) => (
-                <FaqItem key={item.question} {...item} />
-              ))}
-            </div>
-            <div className="faq-list">
-              {second.map((item) => (
-                <FaqItem key={item.question} {...item} />
-              ))}
-            </div>
-          </div>
+        <div className="faq-list faq-single">
+          {ITEMS.map((item) => (
+            <details className="faq-item" key={item.question}>
+              <summary>
+                <span className="faq-question">{item.question}</span>
+                <span className="faq-icon" aria-hidden="true" />
+              </summary>
+              <div className="faq-answer">{item.answer}</div>
+            </details>
+          ))}
         </div>
       </div>
     </section>
   );
 }
-

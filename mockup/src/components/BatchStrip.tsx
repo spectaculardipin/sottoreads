@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { RotateCcw, SkipBack, SkipForward } from 'lucide-react';
+import { ArrowRight, Pause, Play } from 'lucide-react';
 
 interface BatchStripProps {
   words: string[];
@@ -15,14 +15,10 @@ interface BatchStripProps {
   advanceValue?: string;
 }
 
-const BARS = Array.from({ length: 44 }, (_, index) => {
-  const wave = Math.abs(Math.sin(index * 1.31) * 0.7 + Math.sin(index * 0.47) * 0.3);
-  return Math.round(5 + wave * 27);
+const BARS = Array.from({ length: 40 }, (_, index) => {
+  const wave = Math.abs(Math.sin(index * 1.17) * 0.72 + Math.sin(index * 0.41) * 0.28);
+  return Math.round(6 + wave * 26);
 });
-
-function pad(value: number): string {
-  return String(value).padStart(2, '0');
-}
 
 export function BatchStrip({
   words,
@@ -32,101 +28,80 @@ export function BatchStrip({
   playing,
   onPlay,
   onNext,
-  onPrevious,
   nextLabel = 'Next',
-  advanceLabel = 'Smart advance',
-  advanceValue = '00:07',
+  advanceLabel = 'Smart advance in',
+  advanceValue = '0:03',
 }: BatchStripProps) {
   const progress =
     activeWord >= 0 && words.length > 0
       ? Math.max(8, Math.min(100, ((activeWord + 1) / words.length) * 100))
-      : 58;
+      : 38;
   const hotBars = Math.round((progress / 100) * BARS.length);
 
   return (
-    <div className="instrument">
-      <div className="instrument-top">
-        <span>
-          <strong>Sotto</strong> / practice
+    <div className="sample-panel">
+      <div className="sample-top">
+        <span className="sample-brand">
+          <span className="sample-mark" aria-hidden="true">
+            <span />
+            <span />
+          </span>
+          <span className="sample-name">Practice</span>
         </span>
-        <span className="instrument-led">{playing ? 'Reading' : 'Ready'}</span>
-        <span>{batchCount} batches</span>
+        <button
+          type="button"
+          className="sample-play"
+          onClick={onPlay}
+          aria-label={playing ? 'Stop the sample' : 'Play the sample'}
+        >
+          {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+        </button>
       </div>
 
-      <div className="instrument-body">
-        <div className="strip-head">
-          <span className="strip-batch">
-            Batch <strong>{pad(batchIndex + 1)}</strong> / {pad(batchCount)}
-          </span>
-          <span className="strip-speed">0.92x</span>
-        </div>
-
-        <div className="waveform" data-playing={playing} aria-hidden="true">
+      <div className="sample-meter">
+        <div className="sample-wave" data-playing={playing} aria-hidden="true">
           {BARS.map((height, index) => (
             <span
               key={index}
-              className={`wave-bar${index < hotBars ? ' is-hot' : ''}`}
+              className={index < hotBars ? 'is-hot' : undefined}
               style={{ height: `${height}px`, '--i': index } as CSSProperties}
             />
           ))}
         </div>
+        <span className="sample-batch">
+          Batch {batchIndex + 1} of {batchCount}
+        </span>
+      </div>
 
-        <p className="strip-phrase">
-          {words.map((word, index) => {
-            const state =
-              activeWord < 0
+      <p className="sample-phrase">
+        {words.map((word, index) => {
+          const state =
+            activeWord < 0
+              ? 'is-spoken'
+              : index < activeWord
                 ? 'is-spoken'
-                : index < activeWord
-                  ? 'is-spoken'
-                  : index === activeWord
-                    ? 'is-current'
-                    : '';
-            return (
-              <span key={`${word}-${index}`} className={`strip-word ${state}`}>
-                {word}
-              </span>
-            );
-          })}
-        </p>
+                : index === activeWord
+                  ? 'is-current'
+                  : 'is-upcoming';
+          return (
+            <span key={`${word}-${index}`} className={`sample-word ${state}`}>
+              {word}
+            </span>
+          );
+        })}
+      </p>
 
-        <div className="strip-state">
-          <div>
-            <div className="strip-state-label">{playing ? 'Reading aloud' : 'Your turn'}</div>
-            <div className="strip-state-value">
-              {playing ? 'Listen once, then write.' : 'Write it down.'}
-            </div>
-          </div>
-          <div className="strip-timer">
-            <div className="strip-timer-head">
-              <span className="strip-state-label">{advanceLabel}</span>
-              <span className="strip-advance">{advanceValue}</span>
-            </div>
-            <div className="strip-track" aria-hidden="true">
-              <div className="strip-fill" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        </div>
-
-        <div className="strip-controls">
-          <button
-            type="button"
-            className="btn"
-            onClick={onPrevious}
-            disabled={!onPrevious || batchIndex === 0}
-            aria-label="Previous batch"
-          >
-            <SkipBack size={14} />
-            Previous
-          </button>
-          <button type="button" className="btn" onClick={onPlay}>
-            <RotateCcw size={14} />
-            {playing ? 'Stop' : 'Replay'}
-          </button>
-          <button type="button" className="btn btn-primary" onClick={onNext}>
+      <div className="sample-foot">
+        <span className="sample-state">{playing ? 'Reading aloud' : 'Your turn'}</span>
+        <button type="button" className="advance-pill" onClick={onNext}>
+          <span className="advance-copy">
+            {advanceLabel} <strong>{advanceValue}</strong>
+          </span>
+          <span className="advance-next">
             {nextLabel}
-            <SkipForward size={14} />
-          </button>
-        </div>
+            <ArrowRight size={17} />
+          </span>
+        </button>
       </div>
     </div>
   );

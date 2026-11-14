@@ -4,7 +4,6 @@ import { Hero } from './components/Hero';
 import { Loop } from './components/Loop';
 import { Pace } from './components/Pace';
 import { Notes } from './components/Notes';
-import { Privacy } from './components/Privacy';
 import { Pro } from './components/Pro';
 import { Pricing } from './components/Pricing';
 import { Faq } from './components/Faq';
@@ -49,8 +48,7 @@ export default function App() {
         <Hero onStartFree={startFree} />
         <Loop />
         <Pace />
-        <Notes />
-        <Privacy />
+        <Notes onStartFree={startFree} />
         <Pro />
         <Pricing onStartFree={startFree} onStartPro={startPro} />
         <Faq />

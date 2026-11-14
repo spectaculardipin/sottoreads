@@ -9,7 +9,7 @@ export function Pace() {
   const [rating, setRating] = useState('Okay');
 
   return (
-    <section className="section" id="pace">
+    <section className="section pace-section" id="pace">
       <div className="shell section-grid">
         <div className="rail" aria-hidden="true">
           02
@@ -17,27 +17,11 @@ export function Pace() {
         <div className="section-body">
           <div className="pace-grid">
             <div className="pace-copy">
-              <h2 className="section-title">It learns how long you take.</h2>
+              <h2 className="section-title">It times your handwriting.</h2>
               <p className="section-lede">
-                Smart mode starts with an 11-batch training session. Sotto Reads records how long
-                each batch takes, turns that into one number, and uses it to decide when to move
-                on. You can press Next sooner, or ask for more time.
+                A short training session measures how long each batch takes and turns it into one
+                number. Smart mode uses it to decide when to advance.
               </p>
-
-              <div className="pace-facts">
-                <div className="pace-fact">
-                  <strong>11</strong>
-                  <span>training batches</span>
-                </div>
-                <div className="pace-fact">
-                  <strong>1</strong>
-                  <span>pace number</span>
-                </div>
-                <div className="pace-fact">
-                  <strong>Always</strong>
-                  <span>your call</span>
-                </div>
-              </div>
             </div>
 
             <div className="pace-panel">
@@ -48,7 +32,7 @@ export function Pace() {
 
               <div className="pace-panel-body">
                 <div className="pace-number">
-                  <strong>128</strong>
+                  <strong>420</strong>
                   <span>
                     ms per
                     <br />

@@ -14,10 +14,9 @@ interface NavProps {
 
 const LINKS = [
   { href: '#how', label: 'How it works', index: '01' },
-  { href: '#pace', label: 'Smart pace', index: '02' },
-  { href: '#privacy', label: 'Privacy', index: '03' },
-  { href: '#pricing', label: 'Pricing', index: '04' },
-  { href: '#faq', label: 'FAQ', index: '05' },
+  { href: '#pace', label: 'Pace', index: '02' },
+  { href: '#pricing', label: 'Pricing', index: '03' },
+  { href: '#faq', label: 'FAQ', index: '04' },
 ];
 
 export function Nav({ theme, onToggleTheme, onSignIn, onStartFree }: NavProps) {
@@ -90,7 +89,7 @@ export function Nav({ theme, onToggleTheme, onSignIn, onStartFree }: NavProps) {
           <div className="nav-actions">
             <ThemeToggle theme={theme} onToggle={onToggleTheme} />
             <button type="button" className="nav-signin" onClick={onSignIn}>
-              Sign in
+              Log in
             </button>
             <button type="button" className="btn btn-primary btn-sm" onClick={onStartFree}>
               Start free
@@ -154,10 +153,9 @@ export function Nav({ theme, onToggleTheme, onSignIn, onStartFree }: NavProps) {
                 onSignIn();
               }}
             >
-              Sign in to Pro
+              Log in to Pro
             </button>
           </div>
-
           <div className="mobile-foot">
             <p>Free practice needs no account. Your notes stay in your browser.</p>
           </div>

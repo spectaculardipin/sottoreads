@@ -1,16 +1,15 @@
 import { useState } from 'react';
-import { Check } from 'lucide-react';
 
 const VOICES = [
-  { id: 'mara', name: 'Mara', provider: 'ElevenLabs', duration: '0:04' },
-  { id: 'kai', name: 'Kai', provider: 'Fish Audio', duration: '0:05' },
+  { id: 'eleven', name: 'ElevenLabs', provider: 'Cloud voice', duration: '0:04' },
+  { id: 'fish', name: 'Fish Audio', provider: 'Cloud voice', duration: '0:05' },
   { id: 'browser', name: 'Browser', provider: 'Free plan', duration: '0:03' },
 ];
 
 const VOICE_WAVE = [4, 10, 16, 8, 18, 12, 20, 6, 14, 10, 17, 7, 12, 19, 9, 15];
 
 export function Pro() {
-  const [selected, setSelected] = useState('mara');
+  const [selected, setSelected] = useState('eleven');
   const [handsFree, setHandsFree] = useState(true);
 
   return (
@@ -22,36 +21,11 @@ export function Pro() {
         <div className="section-body">
           <div className="pro-grid">
             <div className="pro-copy">
-              <h2 className="section-title">Studio voices, when you want them.</h2>
+              <h2 className="section-title">Studio voices, when the browser voice isn't enough.</h2>
               <p className="section-lede">
-                Pro adds cloud voices from Fish Audio and ElevenLabs, hands-free advance, and an AI
-                support chat inside the session. It is for the days when the browser voice is not
-                enough.
+                Fish Audio and ElevenLabs voices, hands-free advance, and a support chat inside the
+                session.
               </p>
-
-              <ul className="pro-list">
-                <li>
-                  <Check size={15} />
-                  <span>
-                    <strong>Fish Audio and ElevenLabs voices.</strong> Pick a voice for the
-                    session, then keep it.
-                  </span>
-                </li>
-                <li>
-                  <Check size={15} />
-                  <span>
-                    <strong>Hands-free advance.</strong> Cloud transcription listens for the end of
-                    your batch so you can keep writing.
-                  </span>
-                </li>
-                <li>
-                  <Check size={15} />
-                  <span>
-                    <strong>AI support chat.</strong> Ask about pace, batches, or a stuck session
-                    without leaving the page.
-                  </span>
-                </li>
-              </ul>
             </div>
 
             <div className="pro-panel">
@@ -133,8 +107,8 @@ export function Pro() {
                     </div>
                     <div className="chat-bubble">
                       <strong>Sotto</strong>
-                      Smart mode follows your learned pace. After a session, rate the pacing as too
-                      fast, or switch to Manual and press Next when you are ready.
+                      Smart mode follows your learned pace. Rate the pacing after a session, or switch
+                      to Manual.
                     </div>
                   </div>
                 </div>

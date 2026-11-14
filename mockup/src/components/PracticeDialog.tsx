@@ -115,8 +115,8 @@ export function PracticeDialog({ open, onClose }: PracticeDialogProps) {
                 <span>words</span>
               </div>
               <div>
-                <strong>0</strong>
-                <span>accounts</span>
+                <strong>Free</strong>
+                <span>plan</span>
               </div>
             </div>
             <button type="button" className="btn btn-primary btn-lg" onClick={begin}>

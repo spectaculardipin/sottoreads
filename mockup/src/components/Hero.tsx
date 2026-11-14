@@ -3,7 +3,8 @@ import { delay } from '../lib/style';
 import { BatchStrip } from './BatchStrip';
 import { useSampleVoice } from '../hooks/useSampleVoice';
 
-const SAMPLE_WORDS = 'Small habits, repeated daily, become the quiet architecture.'.split(' ');
+const SAMPLE_WORDS =
+  'The morning light moved slowly across the desk, and the room stayed quiet.'.split(' ');
 
 interface HeroProps {
   onStartFree: () => void;
@@ -15,43 +16,39 @@ export function Hero({ onStartFree }: HeroProps) {
 
   return (
     <section className="hero" id="top">
-      <div className="shell hero-inner">
-        <div className="hero-copy">
-          <p className="eyebrow enter" style={delay(0)}>
-            Dictation practice for people who write by hand
-          </p>
+      <div className="hero-glow" aria-hidden="true" />
 
-          <h1 className="enter" style={delay(60)}>
-            The dictation tool that <span className="accent">waits</span> for you.
-          </h1>
+      <div className="shell hero-fish">
+        <span className="hero-pill enter" style={delay(0)}>
+          <strong>Try free</strong>
+          <span>Browser voice</span>
+        </span>
 
-          <p className="hero-sub enter" style={delay(130)}>
-            Load your notes. Sotto Reads speaks one short batch at a time, then gives you room to
-            write it down. Advance when you click, or when your learned pace says you are ready.
-          </p>
+        <h1 className="hero-title enter" style={delay(60)}>
+          Dictation practice that goes quiet while you write.
+        </h1>
 
-          <div className="hero-actions enter" style={delay(200)}>
-            <button type="button" className="btn btn-primary btn-lg" onClick={onStartFree}>
-              Start free
-              <ArrowRight size={17} className="btn-arrow" />
-            </button>
-            <button
-              type="button"
-              className="btn btn-lg"
-              onClick={() => play(sampleText)}
-              aria-pressed={playing}
-            >
-              {playing ? <Square size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
-              {playing ? 'Stop the sample' : 'Hear a batch'}
-            </button>
-          </div>
+        <p className="hero-sub enter" style={delay(120)}>
+          Load your notes. It speaks one short batch, then waits while you write it down.
+        </p>
 
-          <p className="hero-note enter" style={delay(250)}>
-            Free plan. Browser voice. No account, no upload.
-          </p>
+        <div className="hero-actions enter" style={delay(180)}>
+          <button type="button" className="btn btn-primary btn-lg" onClick={onStartFree}>
+            Start free
+            <ArrowRight size={17} className="btn-arrow" />
+          </button>
+          <button
+            type="button"
+            className="btn btn-lg"
+            onClick={() => play(sampleText)}
+            aria-pressed={playing}
+          >
+            {playing ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+            {playing ? 'Stop the sample' : 'Hear a sample'}
+          </button>
         </div>
 
-        <div className="hero-panel enter" style={delay(180)}>
+        <div className="stage enter" style={delay(240)}>
           <BatchStrip
             words={SAMPLE_WORDS}
             activeWord={activeWord}
@@ -62,25 +59,6 @@ export function Hero({ onStartFree }: HeroProps) {
             onNext={onStartFree}
             nextLabel="Next"
           />
-        </div>
-
-        <div className="hero-facts enter" style={delay(310)}>
-          <div className="hero-fact">
-            <span>01</span>
-            <strong>PDF, DOCX, TXT, Markdown</strong>
-          </div>
-          <div className="hero-fact">
-            <span>02</span>
-            <strong>1 to 20 words per batch</strong>
-          </div>
-          <div className="hero-fact">
-            <span>03</span>
-            <strong>Manual or learned pace</strong>
-          </div>
-          <div className="hero-fact">
-            <span>04</span>
-            <strong>Export your pace as JSON</strong>
-          </div>
         </div>
       </div>
     </section>

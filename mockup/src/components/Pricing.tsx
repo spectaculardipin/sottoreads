@@ -10,7 +10,6 @@ const FREE = [
   'PDF, DOCX, TXT, and Markdown',
   'Words, sentence, and phrase batches',
   'Manual and learned-pace advance',
-  'Local pace export and import',
 ];
 
 const PRO = [
@@ -30,12 +29,8 @@ export function Pricing({ onStartFree, onStartPro }: PricingProps) {
         <div className="section-body">
           <div className="pricing-head">
             <div>
-              <h2 className="section-title">Start free. Add studio voices on Pro.</h2>
+              <h2 className="section-title">Start free, then add studio voices on Pro.</h2>
             </div>
-            <p className="section-lede">
-              The free plan is the full practice loop with your browser voice. Pro adds studio
-              voices, hands-free advance, and support inside the session.
-            </p>
           </div>
 
           <div className="plans">

@@ -1,99 +1,63 @@
-import { ArrowRight, Play } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
-const MINI_WAVE = [9, 14, 22, 12, 26, 18, 30, 16, 24, 11, 20, 28, 15, 23, 10, 19, 27, 13, 21, 17, 25, 12];
+const BARS = [10, 18, 26, 14, 30, 20, 34, 16, 24, 12, 28, 38, 18, 32, 22, 14, 26, 20, 36, 16, 24, 30, 12, 22, 28, 18, 32, 14];
 
 export function Loop() {
   return (
-    <section className="section" id="how">
-      <div className="shell section-grid">
-        <div className="rail" aria-hidden="true">
-          01
+    <section className="section loop-section" id="how">
+      <div className="shell">
+        <div className="section-head-center">
+          <h2 className="section-title">One batch at a time.</h2>
+          <p className="section-lede">
+            No timer races you. The next batch waits until you are done.
+          </p>
         </div>
-        <div className="section-body">
-          <div className="loop-head">
-            <div>
-              <h2 className="section-title">One batch. Then another.</h2>
+
+        <div className="loop-fish">
+          <article className="step">
+            <div className="step-visual">
+              <div className="wave-demo" aria-hidden="true">
+                {BARS.map((height, index) => (
+                  <span
+                    key={index}
+                    className={index < 16 ? 'is-hot' : undefined}
+                    style={{ height: `${height}px` }}
+                  />
+                ))}
+              </div>
             </div>
-            <p className="section-lede">
-              Short enough to hold in your head. Long enough to be worth writing. Sotto Reads keeps
-              the next step obvious, so the session stays quiet.
-            </p>
-          </div>
+            <h3>A short batch, read once.</h3>
+            <p>A few seconds of listening.</p>
+          </article>
 
-          <div className="loop-steps">
-            <article className="loop-step">
-              <div className="loop-num">
-                <span>Listen</span>
+          <article className="step">
+            <div className="step-visual">
+              <div className="write-demo" aria-hidden="true">
+                <span className="write-text">Small habits, repeated daily</span>
+                <span className="write-caret" />
               </div>
-              <div className="loop-visual" aria-hidden="true">
-                <div className="mini-play">
-                  <span className="mini-play-btn">
-                    <Play size={15} fill="currentColor" />
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <div className="mini-wave">
-                      {MINI_WAVE.map((height, index) => (
-                        <span
-                          key={index}
-                          className={index < 11 ? 'is-hot' : undefined}
-                          style={{ height: `${height}px` }}
-                        />
-                      ))}
-                    </div>
-                    <div className="mini-time">0:04 / batch 01</div>
-                  </div>
-                </div>
-              </div>
-              <h3>Listen once.</h3>
-              <p>Choose a voice and a speed. The batch is read one time, straight through.</p>
-            </article>
+            </div>
+            <h3>Then you write it down.</h3>
+            <p>The batch stays on screen while you work.</p>
+          </article>
 
-            <article className="loop-step">
-              <div className="loop-num">
-                <span>Write</span>
+          <article className="step">
+            <div className="step-visual">
+              <div className="advance-pill is-dark" aria-hidden="true">
+                <span className="advance-copy">
+                  Smart advance in <strong>0:03</strong>
+                </span>
+                <span className="advance-next">
+                  Next
+                  <ArrowRight size={17} />
+                </span>
               </div>
-              <div className="loop-visual" aria-hidden="true">
-                <div className="write-sheet">
-                  <div className="write-copy">
-                    Small habits, repeated daily
-                    <span className="write-caret" />
-                  </div>
-                  <div className="write-line" />
-                  <div className="write-line" />
-                  <div className="write-line" />
-                </div>
-              </div>
-              <h3>Write it down.</h3>
-              <p>The batch stays on screen while you work. The clock starts with the first word.</p>
-            </article>
-
-            <article className="loop-step">
-              <div className="loop-num">
-                <span>Advance</span>
-              </div>
-              <div className="loop-visual" aria-hidden="true">
-                <div className="mini-advance">
-                  <div className="mini-advance-row">
-                    <span>Your turn</span>
-                    <strong>Smart 00:07</strong>
-                  </div>
-                  <div className="strip-track">
-                    <div className="strip-fill" style={{ width: '64%' }} />
-                  </div>
-                  <div className="mini-next">
-                    Next
-                    <ArrowRight size={13} />
-                  </div>
-                </div>
-              </div>
-              <h3>Move when you are done.</h3>
-              <p>Click Next, or let Smart mode move at the pace it learned from your writing.</p>
-            </article>
-          </div>
+            </div>
+            <h3>Next, when you're ready.</h3>
+            <p>Press it yourself, or let your pace decide.</p>
+          </article>
         </div>
       </div>
     </section>
   );
 }
-
-
