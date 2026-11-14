@@ -2837,3 +2837,55 @@ button.advance-pill:hover {
     animation: type-line 2.4s steps(28) 1;
   }
 }
+
+/* Final alignment and dark band */
+
+.pricing-head .section-title {
+  margin-inline: auto;
+}
+
+.cta h2 {
+  margin-inline: auto;
+}
+
+[data-theme='dark'] .pro-section {
+  background: #121212;
+}
+
+@media (max-width: 640px) {
+  .pricing-head,
+  .pricing-head .section-title,
+  .cta-inner,
+  .cta h2,
+  .cta p {
+    text-align: center;
+  }
+
+  .pricing-head .section-title,
+  .cta h2 {
+    margin-inline: auto;
+  }
+}
+
+/* Real painted stage */
+
+.stage {
+  background: #d8c7c0 url('/stage-light.jpg') center 45% / cover no-repeat;
+  border-radius: 20px;
+}
+
+[data-theme='dark'] .stage {
+  background: #241f2a url('/stage-dark.jpg') center 45% / cover no-repeat;
+}
+
+.stage::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  opacity: 0.06;
+  mix-blend-mode: multiply;
+}
+
+[data-theme='dark'] .stage::before {
+  opacity: 0.05;
+  mix-blend-mode: screen;
+}

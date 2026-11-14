@@ -37,7 +37,7 @@ No blue accent. No gradients in type. The pastel lives on the stage and the pace
 
 ## Signature
 
-**The stage and the sample panel.** A muted pastel canvas with grain, the black practice panel inset 96px and running off the bottom edge, and the white advance pill inside it: "Smart advance in 0:03" with "Next". This is the one object that must feel like the product.
+**The stage and the sample panel.** A real painterly canvas, muted and warm, with the black practice panel inset 96px and running off the bottom edge, and the white advance pill inside it: "Smart advance in 0:03" with "Next". The stage uses generated oil/gouache textures (`public/stage-light.jpg`, `public/stage-dark.jpg`) with a light grain overlay. This is the one object that must feel like the product.
 
 Supporting marks:
 
