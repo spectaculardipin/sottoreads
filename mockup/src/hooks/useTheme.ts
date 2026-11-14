@@ -14,7 +14,7 @@ export function useTheme() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#080808' : '#f7f7f4');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0a0a0a' : '#f5f3ef');
     try {
       localStorage.setItem('sotto-theme', theme);
     } catch {
